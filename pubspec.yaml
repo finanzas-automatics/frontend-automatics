@@ -1,0 +1,41 @@
+name: automatics
+description: AutoMatics - Fintech Solutions para crédito vehicular
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Navegación
+  go_router: ^13.2.0
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # HTTP client para backend C#
+  dio: ^5.4.3+1
+
+  # Gráficas para VAN/TIR/saldo deudor
+  fl_chart: ^0.68.0
+
+  # Fuentes: Montserrat + Inter
+  google_fonts: ^6.2.1
+
+  # Formateo de moneda y fechas
+  intl: ^0.19.0
+
+  # Íconos Material Symbols
+  cupertino_icons: ^1.0.6
+  flutter_secure_storage: ^10.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
