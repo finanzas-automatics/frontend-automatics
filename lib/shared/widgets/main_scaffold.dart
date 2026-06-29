@@ -67,7 +67,7 @@ class MainScaffold extends StatelessWidget {
                   selectedIcon: Icons.analytics,
                   label: 'Reportes',
                   isSelected: currentIndex == 3,
-                  onTap: () {},
+                  onTap: () => context.go(AppRoutes.financialIndicators),
                 ),
                 _NavItem(
                   icon: Icons.settings_outlined,
