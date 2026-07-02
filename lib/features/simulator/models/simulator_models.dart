@@ -10,6 +10,9 @@ class SimulationRequest {
   final String gracePeriodType;
   final int graceMonths;
   final double cok;
+  final int clienteId;
+  final int vehiculoId;
+  final int usuarioId;
 
   SimulationRequest({
     required this.currency,
@@ -23,24 +26,34 @@ class SimulationRequest {
     required this.gracePeriodType,
     required this.graceMonths,
     required this.cok,
+    this.clienteId  = 0,
+    this.vehiculoId = 0,
+    this.usuarioId  = 0,
   });
 
   Map<String, dynamic> toJson() => {
-        'currency': currency,
-        'vehiclePrice': vehiclePrice,
-        'initialPaymentPct': initialPaymentPct,
-        'finalPaymentPct': finalPaymentPct,
-        'termMonths': termMonths,
-        'rateType': rateType,
-        'rateValue': rateValue,
-        if (capitalization != null) 'capitalization': capitalization,
-        'gracePeriodType': gracePeriodType,
-        'graceMonths': graceMonths,
-        'cok': cok,
-      };
+    'clienteId':              clienteId,
+    'vehiculoId':             vehiculoId,
+    'usuarioId':              usuarioId,
+    'precioVenta':            vehiclePrice,
+    'moneda':                 currency,
+    'porcentajeCuotaInicial': initialPaymentPct / 100,
+    'plazoMeses':             termMonths,
+    'tasaInteresAnual':       rateValue / 100,
+    'esTasaEfectiva':         rateType == 'TEA',
+    'diasCapitalizacion':     rateType == 'TNA' ? 30 : 0,
+    'mesesGraciaTotal':       gracePeriodType == 'total'   ? graceMonths : 0,
+    'mesesGraciaParcial':     gracePeriodType == 'parcial' ? graceMonths : 0,
+    'porcentajeCuotaFinal':   finalPaymentPct / 100,
+    'tasaDesgravamenMensual': 0.00049,
+    'seguroVehicularMensual': 0.00030,
+    'portesMensuales':        3.50,
+    'tasaCokAnual':           cok / 100,
+  };
 }
 
 class SimulationResponse {
+  final int id;
   final double loanAmount;
   final double initialPayment;
   final double balloonPayment;
@@ -54,6 +67,7 @@ class SimulationResponse {
   final List<ScheduleRowResponse> schedule;
 
   SimulationResponse({
+    required this.id,
     required this.loanAmount,
     required this.initialPayment,
     required this.balloonPayment,
@@ -68,20 +82,44 @@ class SimulationResponse {
   });
 
   factory SimulationResponse.fromJson(Map<String, dynamic> json) {
+    final List cronograma = (json['cronogramaPagos'] ?? json['schedule'] ?? []) as List;
+    final schedule = cronograma
+        .map((e) => ScheduleRowResponse.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final totalInterest = schedule.fold(0.0, (sum, r) => sum + r.interest);
+    final totalPayment  = schedule.fold(0.0, (sum, r) => sum + r.totalPayment);
+
+    // Funciones a prueba de balas para evitar el error Type 'Null' is not a subtype
+    int parseId(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return SimulationResponse(
-      loanAmount: (json['loanAmount'] as num).toDouble(),
-      initialPayment: (json['initialPayment'] as num).toDouble(),
-      balloonPayment: (json['balloonPayment'] as num).toDouble(),
-      monthlyPayment: (json['monthlyPayment'] as num).toDouble(),
-      temMonthly: (json['tea'] as num).toDouble(),
-      tirMonthly: (json['tirMonthly'] as num).toDouble(),
-      tcea: (json['tcea'] as num).toDouble(),
-      van: (json['van'] as num).toDouble(),
-      totalInterest: (json['totalInterest'] as num).toDouble(),
-      totalPayment: (json['totalPayment'] as num).toDouble(),
-      schedule: (json['schedule'] as List)
-          .map((e) => ScheduleRowResponse.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      id:             parseId(json['id']),
+      loanAmount:     parseDouble(json['montoPrestamo']),
+      initialPayment: 0.0,
+      balloonPayment: schedule.isNotEmpty ? schedule.last.totalPayment : 0.0,
+      monthlyPayment: schedule.isNotEmpty ? schedule.first.totalPayment : 0.0,
+      temMonthly:     parseDouble(json['valorTasa']),
+      tirMonthly:     parseDouble(json['indicadorTIR']),
+      tcea:           parseDouble(json['indicadorTCEA']),
+      van:            parseDouble(json['indicadorVAN']),
+      totalInterest:  totalInterest,
+      totalPayment:   totalPayment,
+      schedule:       schedule,
     );
   }
 }
@@ -108,15 +146,23 @@ class ScheduleRowResponse {
   });
 
   factory ScheduleRowResponse.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return ScheduleRowResponse(
-      period: json['month'] as int,
-      initialBalance: (json['initialBalance'] as num).toDouble(),
-      interest: (json['interest'] as num).toDouble(),
-      amortization: (json['amortization'] as num).toDouble(),
-      insurance: (json['insurance'] as num).toDouble(),
-      totalPayment: (json['totalPayment'] as num).toDouble(),
-      finalBalance: (json['finalBalance'] as num).toDouble(),
-      graceType: json['graceLabel'] as String,
+      period:         (json['numeroMes'] as num?)?.toInt() ?? 0,
+      initialBalance: parseDouble(json['saldoInicial']),
+      interest:       parseDouble(json['interes']),
+      amortization:   parseDouble(json['amortizacion']),
+      insurance:      parseDouble(json['segurosYGastos']),
+      totalPayment:   parseDouble(json['cuotaTotalMensual']),
+      finalBalance:   parseDouble(json['saldoFinal']),
+      graceType:      json['tipoPeriodo'] as String? ?? '',
     );
   }
 }

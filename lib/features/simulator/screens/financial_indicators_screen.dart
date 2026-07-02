@@ -3,17 +3,200 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+// ✨ IMPORTACIONES PARA EL PDF
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../providers/simulator_provider.dart';
 import '../models/simulator_models.dart';
 
-class FinancialIndicatorsScreen extends ConsumerWidget {
-  const FinancialIndicatorsScreen({super.key});
+class FinancialIndicatorsScreen extends ConsumerStatefulWidget {
+  final int? creditId;
+  const FinancialIndicatorsScreen({super.key, this.creditId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FinancialIndicatorsScreen> createState() =>
+      _FinancialIndicatorsScreenState();
+}
+
+class _FinancialIndicatorsScreenState
+    extends ConsumerState<FinancialIndicatorsScreen> {
+  bool _isApproving = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.creditId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchCreditData();
+      });
+    }
+  }
+
+  Future<void> _fetchCreditData() async {
+    final currentResult = ref.read(simulationResultProvider);
+    if (currentResult != null && currentResult.id == widget.creditId) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(simulatorRepositoryProvider);
+      final data = await repo.getById(widget.creditId!);
+      ref.read(simulationResultProvider.notifier).state = data;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleApprove(SimulationResponse result) async {
+    if (result.id == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta simulación no tiene un crédito guardado.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isApproving = true);
+    try {
+      final repo = ref.read(simulatorRepositoryProvider);
+      await repo.approve(result.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Crédito aprobado. Estado del cliente actualizado.'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+        ref.read(simulationResultProvider.notifier).state = null;
+        context.go('/simulator');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isApproving = false);
+    }
+  }
+
+  // ✨ NUEVO: MOTOR GENERADOR DE REPORTES SBS EN PDF
+// ✨ NUEVO: MOTOR GENERADOR DE REPORTES SBS EN PDF (CORREGIDO)
+  Future<void> _downloadReport(SimulationResponse result) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // MEMBRETE CORPORATIVO
+            pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('AutoMatics®', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1A3A6E'))),
+                        pw.Text('Reporte de Simulación Financiera', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                      ]
+                  ),
+                  pw.Text('ID Operación: #${result.id}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                ]
+            ),
+            pw.SizedBox(height: 20),
+            pw.Divider(color: PdfColors.grey300),
+            pw.SizedBox(height: 16),
+
+            // LEGAL SBS
+            pw.Text('DOCUMENTO INFORMATIVO (SBS COMPLIANT)', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.red800)),
+            pw.Text('El presente documento certifica las condiciones financieras proyectadas bajo los lineamientos del Reglamento de Transparencia de la Superintendencia de Banca, Seguros y AFP (Resolución N° 8181-2012).', style: const pw.TextStyle(fontSize: 10)),
+            pw.SizedBox(height: 20),
+
+            // INDICADORES
+            pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(8)
+                ),
+                child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Indicadores de Rentabilidad y Costo del Contrato', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 10),
+                      pw.Bullet(text: 'Tasa de Costo Efectivo Anual (TCEA): ${result.tcea.toStringAsFixed(2)}%'),
+                      pw.Bullet(text: 'Tasa Interna de Retorno (TIR): ${result.tirMonthly.toStringAsFixed(2)}% mensual'),
+                      pw.Bullet(text: 'Valor Actual Neto (VAN): S/ ${result.van.toStringAsFixed(2)}'),
+                      pw.Bullet(text: 'Plazo Total Estructurado: ${result.schedule.length} meses'),
+                    ]
+                )
+            ),
+            pw.SizedBox(height: 30),
+
+            // CRONOGRAMA DE PAGOS
+            pw.Text('Cronograma de Pagos (Método Francés / Compra Inteligente)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 10),
+            pw.TableHelper.fromTextArray(
+              context: context,
+              cellAlignment: pw.Alignment.centerRight,
+              headerAlignment: pw.Alignment.center,
+              headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#1A3A6E')),
+              headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 9, fontWeight: pw.FontWeight.bold),
+              cellStyle: const pw.TextStyle(fontSize: 8),
+              headers: ['Mes', 'Saldo Inicial', 'Amortización', 'Interés', 'Seguros', 'Cuota Total', 'Saldo Final'],
+              data: result.schedule.map((row) {
+                // ✨ AHORA USAMOS TUS VARIABLES REALES DEL MODELO
+                return [
+                  row.period.toString(),
+                  'S/ ${row.initialBalance.toStringAsFixed(2)}',
+                  'S/ ${row.amortization.toStringAsFixed(2)}',
+                  'S/ ${row.interest.toStringAsFixed(2)}',
+                  'S/ ${row.insurance.toStringAsFixed(2)}', // Agregamos seguros al reporte
+                  'S/ ${row.totalPayment.toStringAsFixed(2)}',
+                  'S/ ${row.finalBalance.toStringAsFixed(2)}',
+                ];
+              }).toList(),
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+      name: 'Reporte_SBS_AutoMatics_${result.id}.pdf',
+    );
+  }
+  @override
+  Widget build(BuildContext context) {
     final result = ref.watch(simulationResultProvider);
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AutomaticsAppBar(showBack: true, onBack: () => context.pop()),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.secondary),
+        ),
+      );
+    }
 
     if (result == null) {
       return Scaffold(
@@ -65,7 +248,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             _buildStatusBanner(result),
             const SizedBox(height: 16),
-            _buildApproveButton(),
+            _buildApproveButton(result),
           ],
         ),
       ),
@@ -99,8 +282,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: AppColors.secondaryContainer.withValues(alpha: 0.1),
             border: Border.all(
@@ -110,8 +292,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.person_outline,
-                  size: 14, color: AppColors.secondary),
+              Icon(Icons.person_outline, size: 14, color: AppColors.secondary),
               SizedBox(width: 6),
               Text(
                 'Cálculos desde la perspectiva del deudor.',
@@ -164,8 +345,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isNeg
                       ? AppColors.errorContainer.withValues(alpha: 0.3)
@@ -173,9 +353,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Icon(
-                  isNeg
-                      ? Icons.trending_down_rounded
-                      : Icons.trending_up_rounded,
+                  isNeg ? Icons.trending_down_rounded : Icons.trending_up_rounded,
                   size: 16,
                   color: isNeg ? AppColors.error : const Color(0xFF16A34A),
                 ),
@@ -208,9 +386,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 11,
-                color: isNeg
-                    ? AppColors.onErrorContainer
-                    : const Color(0xFF166534),
+                color: isNeg ? AppColors.onErrorContainer : const Color(0xFF166534),
               ),
             ),
           ),
@@ -302,10 +478,8 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
                   color: AppColors.onSurfaceVariant,
                 ),
               ),
-              // SBS badge
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDCFCE7),
                   borderRadius: BorderRadius.circular(99),
@@ -313,8 +487,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_outlined,
-                        size: 12, color: Color(0xFF16A34A)),
+                    Icon(Icons.verified_outlined, size: 12, color: Color(0xFF16A34A)),
                     SizedBox(width: 4),
                     Text(
                       'SBS',
@@ -454,6 +627,16 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
   // ── STATUS BANNER ────────────────────────────────────────────────────────
 
   Widget _buildStatusBanner(SimulationResponse result) {
+
+    // ✨ CANDADO DINÁMICO: Extraemos la cuota real directamente de la primera fila del cronograma
+    double cuotaReal = result.monthlyPayment;
+    try {
+      if (result.schedule.isNotEmpty) {
+        dynamic firstRow = result.schedule.first as dynamic;
+        cuotaReal = firstRow.totalPayment ?? firstRow.cuotaTotalMensual ?? result.monthlyPayment;
+      }
+    } catch (_) {}
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -500,7 +683,8 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  // ✨ CONECTADO AL GENERADOR DE PDF
+                  onPressed: () => _downloadReport(result),
                   icon: const Icon(Icons.download_outlined, size: 16),
                   label: const Text('Descargar Reporte SBS',
                       style: TextStyle(fontSize: 12)),
@@ -513,8 +697,7 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppColors.onPrimary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
@@ -532,7 +715,8 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'S/ ${result.monthlyPayment.toStringAsFixed(2)}',
+                        // ✨ MOSTRANDO LA CUOTA 100% REAL DE LA BASE DE DATOS
+                        'S/ ${cuotaReal.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 14,
@@ -560,14 +744,21 @@ class FinancialIndicatorsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildApproveButton() {
+  Widget _buildApproveButton(SimulationResponse result) {
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed: () {},
-        icon: const Icon(Icons.check_circle_outline, size: 18),
-        label: const Text('Aprobar Crédito'),
+        onPressed: _isApproving ? null : () => _handleApprove(result),
+        icon: _isApproving
+            ? const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+              strokeWidth: 2, color: AppColors.onSecondary),
+        )
+            : const Icon(Icons.check_circle_outline, size: 18),
+        label: Text(_isApproving ? 'Aprobando...' : 'Aprobar Crédito'),
       ),
     );
   }
@@ -586,17 +777,15 @@ class _BalanceChartPainter extends CustomPainter {
     final maxBalance = schedule.first.initialBalance;
     if (maxBalance <= 0) return;
 
-    // Build data points (include month-0 = full balance)
     final points = <Offset>[];
-    points.add(Offset(0, 0)); // top-left = max balance
+    points.add(const Offset(0, 0));
     for (int i = 0; i < schedule.length; i++) {
       final x = size.width * (i + 1) / schedule.length;
       final normalised = schedule[i].finalBalance / maxBalance;
-      final y = size.height * (1 - normalised.clamp(0, 1));
+      final y = size.height * (1 - normalised.clamp(0.0, 1.0));
       points.add(Offset(x, y));
     }
 
-    // Grid lines
     final gridPaint = Paint()
       ..color = AppColors.outlineVariant.withValues(alpha: 0.4)
       ..strokeWidth = 1;
@@ -605,7 +794,6 @@ class _BalanceChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // Fill path
     final fillPath = Path();
     fillPath.moveTo(points.first.dx, points.first.dy);
     for (int i = 1; i < points.length; i++) {
@@ -634,7 +822,6 @@ class _BalanceChartPainter extends CustomPainter {
         ..style = PaintingStyle.fill,
     );
 
-    // Line path
     final linePath = Path();
     linePath.moveTo(points.first.dx, points.first.dy);
     for (int i = 1; i < points.length; i++) {
@@ -654,7 +841,6 @@ class _BalanceChartPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // Dots at start, mid, end
     final dotPaint = Paint()
       ..color = AppColors.secondary
       ..style = PaintingStyle.fill;

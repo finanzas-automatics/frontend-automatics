@@ -8,6 +8,8 @@ import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../providers/simulator_provider.dart';
 import '../models/simulator_models.dart';
+import '../../clients/models/client_models.dart';
+import '../../clients/providers/client_provider.dart';
 
 class SimulatorScreen extends ConsumerStatefulWidget {
   const SimulatorScreen({super.key});
@@ -28,6 +30,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   int _graceMonths = 0;
   double _cok = 10;
   String _capitalization = 'Mensual (m=12)';
+  int _selectedClienteId = 0;
 
   bool _isLoading = false;
 
@@ -38,6 +41,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     setState(() => _isLoading = true);
     try {
       final request = SimulationRequest(
+        clienteId: _selectedClienteId,
         currency: _currency,
         vehiclePrice: _vehiclePrice,
         initialPaymentPct: _initialPaymentPct,
@@ -121,16 +125,44 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             ],
           ),
           const SizedBox(height: 20),
+
+          // ✅ 1. AQUÍ ESTÁ TU NUEVO BUSCADOR DE CLIENTES
+          _buildClientSearchDropdown(),
+
+          const SizedBox(height: 16),
           _buildCurrencyToggle(),
           const SizedBox(height: 16),
+
+          // ✅ 2. AQUÍ ESTÁ TU NUEVO CAMPO DE PRECIO BLOQUEADO
           _buildField(
             label: 'Precio del Vehículo *',
-            child: _numericInput(
-              value: _vehiclePrice,
-              prefix: _currencySymbol,
-              onChanged: (v) => setState(() => _vehiclePrice = v),
+            helpText: 'Se obtiene automáticamente del vehículo del cliente seleccionado.',
+            child: TextFormField(
+              key: ValueKey(_vehiclePrice), // Cambia en vivo al seleccionar cliente
+              initialValue: '$_currencySymbol ${_vehiclePrice.toStringAsFixed(2)}',
+              readOnly: true, // Bloqueado
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurfaceVariant, // Color apagado
+              ),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppColors.outline),
+                filled: true,
+                fillColor: AppColors.surfaceContainerLow.withValues(alpha: 0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                ),
+              ),
             ),
           ),
+
           const SizedBox(height: 16),
           _buildSliderField(),
           const SizedBox(height: 16),
@@ -227,9 +259,13 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   }
 
   Widget _buildCurrencyToggle() {
+    final bool isLocked = _selectedClienteId != 0 && _vehiclePrice > 0;
+
     return _buildField(
       label: 'Moneda del Crédito *',
-      helpText: 'Selecciona la moneda base del contrato.',
+      helpText: isLocked
+          ? 'Moneda fijada automáticamente según el vehículo del cliente.'
+          : 'Selecciona la moneda base del contrato.',
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLow,
@@ -238,14 +274,20 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         padding: const EdgeInsets.all(4),
         child: Row(
           children: ['SOLES', 'DÓLARES'].map((c) {
-            final sel = _currency == c;
+
+            // Hacemos que la comparación sea a prueba de balas (ignorando tildes y mayúsculas/minúsculas)
+            final String currentNorm = _currency.toUpperCase().replaceAll('Ó', 'O');
+            final String btnNorm = c.toUpperCase().replaceAll('Ó', 'O');
+            final bool sel = currentNorm == btnNorm;
+
             return Expanded(
               child: GestureDetector(
-                onTap: () => setState(() => _currency = c),
+                onTap: isLocked ? null : () => setState(() => _currency = c),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
+                    // Siempre azulito vibrante si está seleccionado, esté bloqueado o no
                     color: sel ? AppColors.secondary : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -257,8 +299,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: sel
-                            ? AppColors.onSecondary
-                            : AppColors.onSurfaceVariant,
+                            ? AppColors.onSecondary // Letra blanca si está azulito
+                            : AppColors.onSurfaceVariant.withValues(alpha: isLocked ? 0.4 : 1.0),
                       ),
                     ),
                   ),
@@ -267,6 +309,79 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             );
           }).toList(),
         ),
+      ),
+    );
+  }
+
+  Widget _buildClientSearchDropdown() {
+    // 1. Escuchamos a tu provider de clientes para obtener la lista desde la BD
+    final clientsAsync = ref.watch(clientsListProvider);
+
+    return _buildField(
+      label: 'Cliente a Evaluar',
+      helpText: 'Busca un cliente registrado por su nombre. Si lo dejas en blanco, será una simulación anónima.',
+      child: clientsAsync.when(
+        loading: () => const CircularProgressIndicator(),
+        error: (err, stack) => Text('Error al cargar clientes: $err', style: const TextStyle(color: AppColors.error)),
+        data: (pagedData) {
+          final clients = pagedData.items; // Extraemos la lista de tu PagedResponse
+
+          return Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownMenu<int>(
+              width: MediaQuery.of(context).size.width - 32, // Para que ocupe todo el ancho
+              hintText: 'Escribe para buscar...',
+              textStyle: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+              inputDecorationTheme: const InputDecorationTheme(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              // Aquí le decimos qué hacer cuando se selecciona uno
+              onSelected: (int? newId) {
+                if (newId != null) {
+                  // Buscamos toda la info del cliente seleccionado
+                  final selectedClient = clients.firstWhere((c) => c.id == newId);
+
+                  setState(() {
+                    _selectedClienteId = newId;
+
+                    // Auto-completamos el precio si el cliente tiene un vehículo
+                    if (selectedClient.vehiclePrice != null) {
+                      _vehiclePrice = selectedClient.vehiclePrice!;
+                    } else {
+                      _vehiclePrice = 0.0; // Si no tiene vehículo registrado
+                    }
+
+                    // Auto-completamos la moneda si el cliente la definió
+                    if (selectedClient.vehicleCurrency != null) {
+                      _currency = selectedClient.vehicleCurrency!;
+                    }
+                  });
+                }
+              },
+              // Aquí mapeamos la lista de clientes para que se dibujen
+              dropdownMenuEntries: clients.map((client) {
+                return DropdownMenuEntry<int>(
+                  value: client.id,
+                  label: client.fullName,
+                  style: MenuItemButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle: const TextStyle(fontFamily: 'Inter'),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        },
       ),
     );
   }

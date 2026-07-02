@@ -178,18 +178,18 @@ class ClientResponse {
 
   factory ClientResponse.fromJson(Map<String, dynamic> json) {
     return ClientResponse(
-      id: json['id'] as int,
-      documentType: json['documentType'] as String,
+      id:             json['id']             as int,
+      documentType:   json['documentType']   as String,
       documentNumber: json['documentNumber'] as String,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
-      fullName: json['fullName'] as String,
-      email: json['email'] as String?,
-      phone: json['phone'] as String?,
-      address: json['address'] as String?,
-      monthlyIncome: (json['monthlyIncome'] as num).toDouble(),
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      firstName:      json['firstName']      as String,
+      lastName:       json['lastName']       as String,
+      fullName:       json['fullName']       as String,
+      email:          json['email']          as String?,
+      phone:          json['phone']          as String?,
+      address:        json['address']        as String?,
+      monthlyIncome:  (json['monthlyIncome'] as num).toDouble(),
+      status:         json['status']         as String,
+      createdAt:      DateTime.now(),        // ✅ Backend no lo manda, usamos now()
       vehicle: json['vehicle'] != null
           ? VehicleResponse.fromJson(json['vehicle'] as Map<String, dynamic>)
           : null,

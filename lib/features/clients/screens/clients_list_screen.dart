@@ -174,7 +174,7 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
             child: Row(
               children: [
                 'Todos los estados',
-                'Activo',
+                'Aprobado',
                 'Evaluacion',
                 'Mora',
               ].map((s) {
@@ -324,7 +324,7 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _statusBadge(client.status),
+                    // ✨ MAGIA: Quitamos el StatusBadge de aquí como lo solicitaste
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -353,19 +353,10 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
     );
   }
 
-  Widget _statusBadge(String status) {
-    final s = status.toLowerCase();
-    if (s == 'activo') return StatusBadge.active();
-    if (s == 'evaluacion' || s == 'evaluación') return StatusBadge.evaluation();
-    if (s == 'pendiente') return StatusBadge.pending();
-    if (s == 'mora') return StatusBadge.overdue();
-    return StatusBadge.active();
-  }
-
   Widget _buildPagination(PagedResponse<ClientListResponse> data) {
     final start = ((data.page - 1) * data.pageSize) + 1;
     final end = (start + data.items.length - 1).clamp(0, data.totalCount);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(

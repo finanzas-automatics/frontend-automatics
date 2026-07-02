@@ -31,6 +31,8 @@ dependencies:
   # Íconos Material Symbols
   cupertino_icons: ^1.0.6
   flutter_secure_storage: ^10.3.1
+  pdf: ^3.13.0
+  printing: ^5.15.0
 
 dev_dependencies:
   flutter_test:

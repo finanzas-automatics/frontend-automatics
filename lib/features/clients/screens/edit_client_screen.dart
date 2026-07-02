@@ -36,7 +36,28 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
   String _currency = 'SOLES';
   bool _available = true;
   String _status = 'activo';
-  
+
+  String _normalizeStatus(String status) {
+    final s = status.toLowerCase()
+        .replaceAll('á', 'a').replaceAll('é', 'e')
+        .replaceAll('í', 'i').replaceAll('ó', 'o')
+        .replaceAll('ú', 'u').replaceAll(' ', '');
+    switch (s) {
+      case 'activo':       return 'activo';
+      case 'enevaluacion':
+      case 'evaluacion':   return 'evaluacion';
+      case 'mora':         return 'mora';
+      case 'pendiente':    return 'pendiente';
+      default:             return 'activo';
+    }
+  }
+
+  String _normalizeCurrency(String currency) {
+    final c = currency.toUpperCase()
+        .replaceAll('Ó', 'O').replaceAll('ó', 'o');
+    return c.contains('SOL') ? 'SOLES' : 'DOLARES';
+  }
+
   bool _isInitialized = false;
   bool _isSaving = false;
   bool _isDeleting = false;
@@ -71,13 +92,13 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
     _addressController.text = client.address ?? '';
     _incomeController.text = client.monthlyIncome.toString();
     _docType = client.documentType;
-    _status = client.status;
+    _status = _normalizeStatus(client.status);
 
     if (client.vehicle != null) {
       _brandController.text = client.vehicle!.brand;
       _modelController.text = client.vehicle!.model;
       _priceController.text = client.vehicle!.price.toString();
-      _currency = client.vehicle!.currency;
+      _currency = _normalizeCurrency(client.vehicle!.currency);
       _available = client.vehicle!.status == 'disponible';
       _fuelTypeController.text = client.vehicle!.fuelType ?? '';
       _transmissionController.text = client.vehicle!.transmission ?? '';

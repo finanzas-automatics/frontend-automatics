@@ -28,8 +28,7 @@ class AppRoutes {
 }
 
 final GoRouter appRouter = GoRouter(
-  //initialLocation: AppRoutes.login,
-  initialLocation: AppRoutes.dashboard,
+  initialLocation: AppRoutes.login,
   routes: [
     GoRoute(
       path: AppRoutes.login,
@@ -78,7 +77,11 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: AppRoutes.financialIndicators,
-          builder: (context, state) => const FinancialIndicatorsScreen(),
+          builder: (context, state) {
+            // ✨ NUEVO: Atrapamos el ID si es que viene alguno
+            final creditId = state.extra as int?;
+            return FinancialIndicatorsScreen(creditId: creditId);
+          },
         ),
         GoRoute(
           path: AppRoutes.settings,

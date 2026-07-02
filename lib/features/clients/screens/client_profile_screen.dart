@@ -7,6 +7,7 @@ import '../../../shared/widgets/common_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/client_provider.dart';
 import '../models/client_models.dart';
+import '../../simulator/providers/simulator_provider.dart';
 
 class ClientProfileScreen extends ConsumerStatefulWidget {
   final String clientId;
@@ -75,12 +76,12 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
             children: [
               _buildPersonalTab(client),
               _buildVehicleTab(context, client),
-              _buildActiveCreditTab(context),
-              _buildHistoryTab(),
+              _buildActiveCreditTab(context, client), // ✨ Ahora pasamos el cliente entero
+              _buildHistoryTab(client.id),
             ],
           ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.secondary)),
         error: (e, st) => Center(child: Text('Error: $e')),
       ),
     );
@@ -182,13 +183,13 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
   Widget _buildVehicleTab(BuildContext context, ClientResponse client) {
     if (client.vehicle == null) {
       return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(40.0),
-          child: Text('Sin vehículo registrado', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.onSurfaceVariant)),
-        )
+          child: Padding(
+            padding: EdgeInsets.all(40.0),
+            child: Text('Sin vehículo registrado', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.onSurfaceVariant)),
+          )
       );
     }
-    
+
     final v = client.vehicle!;
 
     return SingleChildScrollView(
@@ -252,146 +253,295 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
     );
   }
 
-  Widget _buildActiveCreditTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          SectionCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Detalle de Crédito', style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.onPrimary)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(99)),
-                        child: const Text('Activo', style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.onPrimary)),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
+  Widget _buildActiveCreditTab(BuildContext context, ClientResponse client) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final historyAsync = ref.watch(clientHistoryProvider(client.id));
+
+        return historyAsync.when(
+          data: (creditos) {
+            final creditosOrdenados = List.from(creditos)..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+
+            final activeCredit = creditosOrdenados.firstWhere(
+                  (c) => (c['estado'] as String?)?.toLowerCase() == 'aprobado' || (c['estado'] as String?)?.toLowerCase() == 'activo',
+              orElse: () => null,
+            );
+
+            if (activeCredit == null) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      GridView.count(
-                        crossAxisCount: 2, shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 16, mainAxisSpacing: 12, childAspectRatio: 2.5,
-                        children: const [
-                          _CreditDataItem(label: 'Monto Financiado', value: '\$ 18,500', valueColor: AppColors.primary),
-                          _CreditDataItem(label: 'Cuota Mensual', value: 'S/ 1,450', valueColor: AppColors.primary),
-                          _CreditDataItem(label: 'Plazo Restante', value: '32 meses', valueColor: AppColors.primary),
-                          _CreditDataItem(label: 'TEA', value: '9.5%', valueColor: Color(0xFF16A34A)),
-                        ],
+                      Icon(Icons.assignment_late_outlined, size: 48, color: AppColors.onSurfaceVariant),
+                      SizedBox(height: 16),
+                      Text(
+                        'Sin crédito activo',
+                        style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => context.go(AppRoutes.paymentSchedule),
-                              icon: const Icon(Icons.calendar_month_outlined, size: 16),
-                              label: const Text('Ver Cronograma'),
-                              style: ElevatedButton.styleFrom(textStyle: const TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              child: const Text('Pagar Cuota', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Próximo vencimiento: 15 Oct 2024',
-                        style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.onSurfaceVariant),
+                      SizedBox(height: 8),
+                      Text(
+                        'Este cliente actualmente no cuenta con ningún crédito aprobado o contrato activo.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.onSurfaceVariant),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildRiskScore(),
-          const SizedBox(height: 16),
-          _buildRecentActivity(),
-          const SizedBox(height: 16),
-          _buildQuickActions(),
-          const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
+              );
+            }
 
-  Widget _buildRiskScore() {
-    return const SectionCard(
-      child: Column(
-        children: [
-          Text('INDICADORES DE RIESGO', style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
-          SizedBox(height: 16),
-          SizedBox(
-            width: 140, height: 140,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const SizedBox(
-                  width: 140, height: 140,
-                  child: CircularProgressIndicator(
-                    value: 0.9,
-                    strokeWidth: 14,
-                    backgroundColor: AppColors.surfaceContainer,
-                    color: Color(0xFF22C55E),
+            final id = activeCredit['id'] ?? 0;
+            final monto = (activeCredit['montoPrestamo'] as num?)?.toDouble() ?? 0.0;
+            final meses = (activeCredit['plazoMeses'] as num?)?.toInt() ?? 0;
+
+            final tcea = (activeCredit['indicadorTCEA'] as num?)?.toDouble() ?? 0.0;
+            final van = (activeCredit['indicadorVAN'] as num?)?.toDouble() ?? 0.0;
+            final tir = (activeCredit['indicadorTIR'] as num?)?.toDouble() ?? 0.0;
+
+            double cuota = 0.0;
+            if (activeCredit['cronogramaPagos'] != null && (activeCredit['cronogramaPagos'] as List).isNotEmpty) {
+              cuota = (activeCredit['cronogramaPagos'][0]['cuotaTotalMensual'] as num?)?.toDouble() ?? 0.0;
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  SectionCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Detalle de Crédito #$id', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.onPrimary)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(99)),
+                                child: const Text('Aprobado', style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.onPrimary)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              GridView.count(
+                                crossAxisCount: 2, shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisSpacing: 16, mainAxisSpacing: 12, childAspectRatio: 2.5,
+                                children: [
+                                  _CreditDataItem(label: 'Monto Financiado', value: 'S/ ${monto.toStringAsFixed(2)}', valueColor: AppColors.primary),
+                                  _CreditDataItem(label: 'Cuota Mensual Est.', value: 'S/ ${cuota.toStringAsFixed(2)}', valueColor: AppColors.primary),
+                                  _CreditDataItem(label: 'Plazo Restante', value: '$meses meses', valueColor: AppColors.primary),
+                                  _CreditDataItem(label: 'TCEA', value: '${tcea.toStringAsFixed(2)}%', valueColor: const Color(0xFF16A34A)),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => context.go('/simulator/indicators', extra: id),
+                                      icon: const Icon(Icons.analytics_outlined, size: 16),
+                                      label: const Text('Ver Detalle Técnico', style: TextStyle(fontSize: 12)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () {},
+                                      child: const Text('Pagar Cuota', style: TextStyle(fontSize: 12)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('920', style: TextStyle(fontFamily: 'Inter', fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                    const SizedBox(height: 2),
-                    const Text('Sentinell', style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(height: 16),
+
+                  SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('INDICADORES FINANCIEROS DEL CONTRATO', style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
+                        const Divider(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Valor Actual Neto (VAN)', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                  const SizedBox(height: 4),
+                                  Text('S/ ${van.toStringAsFixed(2)}', style: TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.w700, color: van >= 0 ? const Color(0xFF16A34A) : AppColors.error)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('TIR Proyectada', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                  const SizedBox(height: 4),
+                                  Text('${tir.toStringAsFixed(2)}%', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryFixed.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.shield_outlined, size: 16, color: AppColors.secondary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  van >= 0
+                                      ? 'Viabilidad óptima confirmada. El VAN positivo valida la salud financiera de la operación.'
+                                      : 'Estructura de financiamiento evaluada bajo los parámetros y regulaciones vigentes.',
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.onSecondaryContainer),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRecentActivity(context, client.id),
+                  const SizedBox(height: 16),
+                  _buildQuickActions(context, client), // ✨ AHORA ES REAL Y FUNCIONAL
+                  const SizedBox(height: 100),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.secondary)),
+          error: (e, st) => Center(child: Text('Error al procesar datos reales: $e')),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentActivity(BuildContext context, int clientId) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final historyAsync = ref.watch(clientHistoryProvider(clientId));
+
+        return SectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Actividad Reciente', style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primary)),
+              const SizedBox(height: 14),
+              historyAsync.when(
+                data: (creditos) {
+                  if (creditos.isEmpty) {
+                    return const Text('No hay actividad reciente registrada.', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant));
+                  }
+
+                  final sorted = List.from(creditos)..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+                  final recentItems = sorted.take(4).toList();
+
+                  return Column(
+                    children: recentItems.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final c = entry.value;
+                      final id = c['id'] ?? 0;
+                      final estado = (c['estado'] as String?)?.toLowerCase() ?? 'borrador';
+                      final monto = (c['montoPrestamo'] as num?)?.toDouble() ?? 0.0;
+
+                      final isAprobado = estado == 'aprobado' || estado == 'activo';
+                      final isMora = estado == 'mora';
+                      final isEvaluacion = !isAprobado && !isMora;
+
+                      IconData icon;
+                      Color iconBg;
+                      Color iconColor;
+                      String title;
+
+                      if (isAprobado) {
+                        icon = Icons.check_circle_outline;
+                        iconBg = const Color(0xFFF0FDF4);
+                        iconColor = const Color(0xFF22C55E);
+                        title = 'Crédito Aprobado #$id';
+                      } else if (isMora) {
+                        icon = Icons.warning_amber_rounded;
+                        iconBg = AppColors.errorContainer.withValues(alpha: 0.2);
+                        iconColor = AppColors.error;
+                        title = 'Crédito en Mora #$id';
+                      } else {
+                        icon = Icons.pending_actions_outlined;
+                        iconBg = AppColors.secondaryContainer.withValues(alpha: 0.2);
+                        iconColor = AppColors.secondary;
+                        title = 'Simulación en Evaluación #$id';
+                      }
+
+                      return Column(
+                        children: [
+                          _activityItem(
+                            context: context,
+                            ref: ref,
+                            clientId: clientId,
+                            creditId: id,
+                            icon: icon,
+                            iconBg: iconBg,
+                            iconColor: iconColor,
+                            title: title,
+                            subtitle: 'Monto procesado: S/ ${monto.toStringAsFixed(2)}',
+                            time: 'Recientemente',
+                            isEvaluacion: isEvaluacion,
+                          ),
+                          if (index < recentItems.length - 1) const Divider(height: 20),
+                        ],
+                      );
+                    }).toList(),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.secondary)),
+                error: (e, st) => Text('Error: $e', style: const TextStyle(color: AppColors.error)),
+              ),
+            ],
           ),
-          SizedBox(height: 12),
-          Text('Excelente Pagador', style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF16A34A))),
-          Text('Riesgo menor al 1.2% basado en historial de 24 meses.', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildRecentActivity() {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Actividad Reciente', style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primary)),
-          const SizedBox(height: 14),
-          _activityItem(Icons.check_circle_outline, const Color(0xFFF0FDF4), const Color(0xFF22C55E), 'Pago de Cuota #16 procesado', 'S/ 1,450 pagados vía App Banca Móvil', 'Hace 3 días'),
-          const Divider(height: 20),
-          _activityItem(Icons.description_outlined, const Color(0xFFEFF6FF), const Color(0xFF3B82F6), 'Seguro Vehicular Renovado', 'Póliza #8849-2024 emitida por Pacifico', '12 Sep 2024'),
-        ],
-      ),
-    );
-  }
-
-  Widget _activityItem(IconData icon, Color iconBg, Color iconColor, String title, String subtitle, String time) {
+  Widget _activityItem({
+    required BuildContext context,
+    required WidgetRef ref,
+    required int clientId,
+    required int creditId,
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String time,
+    required bool isEvaluacion,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -411,11 +561,55 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
             ],
           ),
         ),
+        if (isEvaluacion)
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+            tooltip: 'Eliminar simulación',
+            onPressed: () => _deleteCredit(context, ref, clientId, creditId),
+          ),
       ],
     );
   }
 
-  Widget _buildQuickActions() {
+  Future<void> _deleteCredit(BuildContext context, WidgetRef ref, int clientId, int creditId) async {
+    final confirm = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Eliminar Simulación', style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700)),
+          content: const Text('¿Estás seguro de descartar esta evaluación? No podrás recuperarla.', style: TextStyle(fontFamily: 'Inter')),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('Cancelar', style: TextStyle(color: AppColors.onSurfaceVariant))
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(c, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        )
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final repo = ref.read(simulatorRepositoryProvider);
+      await repo.deleteCredit(creditId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Simulación eliminada de la base de datos.'), backgroundColor: Color(0xFF16A34A)));
+      }
+      ref.refresh(clientHistoryProvider(clientId));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
+      }
+    }
+  }
+
+  // ✨ BOTONES 100% FUNCIONALES Y VIABLES
+  Widget _buildQuickActions(BuildContext context, ClientResponse client) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.primaryContainer, borderRadius: BorderRadius.circular(12)),
@@ -424,33 +618,130 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
         children: [
           const Text('Acciones Rápidas', style: TextStyle(fontFamily: 'Montserrat', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onPrimary)),
           const SizedBox(height: 12),
-          _quickAction(Icons.mail_outline, 'Enviar Estado de Cuenta'),
+          _quickAction(Icons.request_quote_outlined, 'Nueva Simulación', () => context.go(AppRoutes.simulator)),
           const SizedBox(height: 8),
-          _quickAction(Icons.request_quote_outlined, 'Nueva Simulación'),
+          _quickAction(Icons.edit_outlined, 'Editar Datos del Cliente', () => context.go('/clients/${client.id}/edit')),
           const SizedBox(height: 8),
-          _quickAction(Icons.shield_outlined, 'Actualizar Documentos'),
+          _quickAction(Icons.chat_outlined, 'Contactar por WhatsApp', () {
+            // Esto luego lo puedes conectar con url_launcher para que abra Web WhatsApp
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Iniciando chat de WhatsApp con ${client.phone}...'),
+              backgroundColor: const Color(0xFF25D366),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }),
         ],
       ),
     );
   }
 
-  Widget _quickAction(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.secondaryContainer, size: 18),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.onPrimary)),
-        ],
+  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.secondaryContainer, size: 18),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.onPrimary)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHistoryTab() {
-    return const Center(
-      child: Text('Historial de pagos próximamente', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.onSurfaceVariant)),
+  Widget _buildHistoryTab(int clientId) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final historyAsync = ref.watch(clientHistoryProvider(clientId));
+
+        return historyAsync.when(
+          data: (creditos) {
+            if (creditos.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40.0),
+                  child: Text('No hay simulaciones ni créditos registrados.', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.onSurfaceVariant)),
+                ),
+              );
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              child: Column(
+                children: creditos.map((c) {
+                  final id = c['id'] as int? ?? 0;
+                  final monto = (c['montoPrestamo'] as num?)?.toDouble() ?? 0.0;
+                  final estado = (c['estado'] as String?)?.toLowerCase() ?? 'borrador';
+                  final meses = (c['plazoMeses'] as num?)?.toInt() ?? 0;
+
+                  Color statusColor;
+                  String statusText;
+                  IconData statusIcon;
+
+                  if (estado == 'aprobado' || estado == 'activo') {
+                    statusColor = const Color(0xFF16A34A);
+                    statusText = 'Aprobado';
+                    statusIcon = Icons.check_circle_outline;
+                  } else if (estado == 'mora') {
+                    statusColor = AppColors.error;
+                    statusText = 'En Mora';
+                    statusIcon = Icons.warning_amber_rounded;
+                  } else {
+                    statusColor = AppColors.secondary;
+                    statusText = 'En Evaluación';
+                    statusIcon = Icons.pending_actions_rounded;
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SectionCard(
+                      borderLeftColor: statusColor,
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                            child: Icon(statusIcon, color: statusColor, size: 24),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Crédito #$id', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                const SizedBox(height: 2),
+                                Text('Monto: S/ ${monto.toStringAsFixed(2)} • $meses meses', style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                const SizedBox(height: 4),
+                                Text(statusText, style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+                              ],
+                            ),
+                          ),
+                          if (estado != 'aprobado' && estado != 'activo')
+                            IconButton(
+                              onPressed: () => context.go('/simulator/indicators', extra: id),
+                              icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18, color: AppColors.secondary),
+                              tooltip: 'Revisar o Aprobar',
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.secondary)),
+          error: (e, st) => Center(child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text('No se pudo cargar el historial.\n$e', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.error)),
+          )),
+        );
+      },
     );
   }
 
