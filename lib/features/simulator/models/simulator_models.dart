@@ -10,6 +10,26 @@ class SimulationRequest {
   final String gracePeriodType;
   final int graceMonths;
   final double cok;
+
+  // ✨ NUEVAS VARIABLES DE GASTOS Y SEGUROS AÑADIDAS AQUÍ
+  final double tasaDesgravamenMensual;
+  final double seguroVehicularMensual;
+  final double portesMensuales;
+  final double gpsMensual;
+  final double gastosAdmMensuales;
+
+  final double costesNotariales;
+  final double costesRegistrales;
+  final double tasacion;
+  final double comisionEstudio;
+  final double comisionActivacion;
+
+  final bool financiarNotariales;
+  final bool financiarRegistrales;
+  final bool financiarTasacion;
+  final bool financiarEstudio;
+  final bool financiarActivacion;
+
   final int clienteId;
   final int vehiculoId;
   final int usuarioId;
@@ -26,6 +46,22 @@ class SimulationRequest {
     required this.gracePeriodType,
     required this.graceMonths,
     required this.cok,
+    // ✨ VARIABLES INICIALIZADAS EN EL CONSTRUCTOR
+    this.tasaDesgravamenMensual = 0.049,
+    this.seguroVehicularMensual = 0.03,
+    this.portesMensuales = 3.50,
+    this.gpsMensual = 0.0,
+    this.gastosAdmMensuales = 0.0,
+    this.costesNotariales = 0.0,
+    this.costesRegistrales = 0.0,
+    this.tasacion = 0.0,
+    this.comisionEstudio = 0.0,
+    this.comisionActivacion = 0.0,
+    this.financiarNotariales = false,
+    this.financiarRegistrales = false,
+    this.financiarTasacion = false,
+    this.financiarEstudio = false,
+    this.financiarActivacion = false,
     this.clienteId  = 0,
     this.vehiculoId = 0,
     this.usuarioId  = 0,
@@ -45,10 +81,27 @@ class SimulationRequest {
     'mesesGraciaTotal':       gracePeriodType == 'total'   ? graceMonths : 0,
     'mesesGraciaParcial':     gracePeriodType == 'parcial' ? graceMonths : 0,
     'porcentajeCuotaFinal':   finalPaymentPct / 100,
-    'tasaDesgravamenMensual': 0.00049,
-    'seguroVehicularMensual': 0.00030,
-    'portesMensuales':        3.50,
     'tasaCokAnual':           cok / 100,
+
+    // ✨ ENVÍO DE LAS NUEVAS VARIABLES AL BACKEND
+    // Los porcentajes ingresados se dividen entre 100
+    'tasaDesgravamenMensual': tasaDesgravamenMensual / 100,
+    'seguroVehicularMensual': seguroVehicularMensual / 100,
+    'portesMensuales':        portesMensuales,
+    'gpsMensual':             gpsMensual,
+    'gastosAdmMensuales':     gastosAdmMensuales,
+
+    'costesNotariales':       costesNotariales,
+    'costesRegistrales':      costesRegistrales,
+    'tasacion':               tasacion,
+    'comisionEstudio':        comisionEstudio,
+    'comisionActivacion':     comisionActivacion,
+
+    'financiarNotariales':    financiarNotariales,
+    'financiarRegistrales':   financiarRegistrales,
+    'financiarTasacion':      financiarTasacion,
+    'financiarEstudio':       financiarEstudio,
+    'financiarActivacion':    financiarActivacion,
   };
 }
 

@@ -34,6 +34,25 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
   bool _isLoading = false;
 
+  // ✨ NUEVAS VARIABLES DE ESTADO PARA EL EXCEL (Con valores por defecto)
+  double _tasaDesgravamenMensual = 0.049;
+  double _seguroVehicularMensual = 0.03;
+  double _portesMensuales = 3.50;
+  double _gpsMensual = 0.0;
+  double _gastosAdmMensuales = 0.0;
+
+  double _costesNotariales = 0.0;
+  double _costesRegistrales = 0.0;
+  double _tasacion = 0.0;
+  double _comisionEstudio = 0.0;
+  double _comisionActivacion = 0.0;
+
+  bool _financiarNotariales = false;
+  bool _financiarRegistrales = false;
+  bool _financiarTasacion = false;
+  bool _financiarEstudio = false;
+  bool _financiarActivacion = false;
+
   String get _currencySymbol => _currency == 'SOLES' ? 'S/' : 'US\$';
   double get _initialPaymentAmt => _vehiclePrice * _initialPaymentPct / 100;
 
@@ -53,6 +72,22 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         gracePeriodType: _gracePeriod,
         graceMonths: _gracePeriod == 'Sin gracia' ? 0 : _graceMonths,
         cok: _cok,
+        // ✨ NUEVOS DATOS ENVIADOS EN EL REQUEST
+        tasaDesgravamenMensual: _tasaDesgravamenMensual,
+        seguroVehicularMensual: _seguroVehicularMensual,
+        portesMensuales: _portesMensuales,
+        gpsMensual: _gpsMensual,
+        gastosAdmMensuales: _gastosAdmMensuales,
+        costesNotariales: _costesNotariales,
+        costesRegistrales: _costesRegistrales,
+        tasacion: _tasacion,
+        comisionEstudio: _comisionEstudio,
+        comisionActivacion: _comisionActivacion,
+        financiarNotariales: _financiarNotariales,
+        financiarRegistrales: _financiarRegistrales,
+        financiarTasacion: _financiarTasacion,
+        financiarEstudio: _financiarEstudio,
+        financiarActivacion: _financiarActivacion,
       );
       final repo = ref.read(simulatorRepositoryProvider);
       final result = await repo.simulate(request);
@@ -208,6 +243,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               onChanged: (v) => setState(() => _cok = v),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ✨ AQUÍ SE INYECTA EL ACORDEÓN DE CONFIGURACIÓN AVANZADA
+          _buildAdvancedSettingsAccordion(),
+
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -1042,6 +1082,110 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ✨ WIDGET DE CONFIGURACIÓN AVANZADA
+  Widget _buildAdvancedSettingsAccordion() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: const Text(
+            '⚙️ Costos y Configuración Avanzada',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          iconColor: AppColors.primary,
+          collapsedIconColor: AppColors.outline,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('GASTOS INICIALES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  _buildGastoInicialRow('Costes Notariales', _costesNotariales, _financiarNotariales, (v) => setState(() => _costesNotariales = v), (v) => setState(() => _financiarNotariales = v)),
+                  const SizedBox(height: 8),
+                  _buildGastoInicialRow('Costes Registrales', _costesRegistrales, _financiarRegistrales, (v) => setState(() => _costesRegistrales = v), (v) => setState(() => _financiarRegistrales = v)),
+                  const SizedBox(height: 8),
+                  _buildGastoInicialRow('Tasación', _tasacion, _financiarTasacion, (v) => setState(() => _tasacion = v), (v) => setState(() => _financiarTasacion = v)),
+                  const SizedBox(height: 8),
+                  _buildGastoInicialRow('Comisión de Estudio', _comisionEstudio, _financiarEstudio, (v) => setState(() => _comisionEstudio = v), (v) => setState(() => _financiarEstudio = v)),
+                  const SizedBox(height: 8),
+                  _buildGastoInicialRow('Comisión Activación', _comisionActivacion, _financiarActivacion, (v) => setState(() => _comisionActivacion = v), (v) => setState(() => _financiarActivacion = v)),
+
+                  const Divider(height: 30),
+                  const Text('GASTOS PERIÓDICOS (MENSUALES)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(child: _buildField(label: 'GPS (S/)', child: _numericInput(value: _gpsMensual, onChanged: (v) => setState(() => _gpsMensual = v)))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildField(label: 'Gastos Adm. (S/)', child: _numericInput(value: _gastosAdmMensuales, onChanged: (v) => setState(() => _gastosAdmMensuales = v)))),
+                    ],
+                  ),
+
+                  const Divider(height: 30),
+                  const Text('SEGUROS Y PORTES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildField(label: 'Portes Físicos (S/)', child: _numericInput(value: _portesMensuales, onChanged: (v) => setState(() => _portesMensuales = v))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✨ HELPER PARA LOS GASTOS INICIALES (Input + Switch)
+  Widget _buildGastoInicialRow(String label, double value, bool isFinanced, ValueChanged<double> onChanged, ValueChanged<bool> onSwitch) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 5,
+          child: _buildField(
+              label: label,
+              child: _numericInput(value: value, onChanged: onChanged)
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 4,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(isFinanced ? 'Financiar' : 'Al Contado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isFinanced ? AppColors.secondary : AppColors.onSurfaceVariant)),
+              Switch(
+                value: isFinanced,
+                activeColor: AppColors.secondary,
+                onChanged: onSwitch,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
