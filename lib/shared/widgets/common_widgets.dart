@@ -25,59 +25,13 @@ class AutomaticsAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.primary,
       elevation: 0,
       shadowColor: const Color(0xFF0A1F44).withValues(alpha: 0.05),
-      // ✨ LADO IZQUIERDO: Flecha de retroceso o Nuevo Menú de Herramientas
+      // ✨ LADO IZQUIERDO: Flecha de retroceso o completamente limpio
       leading: showBack
           ? IconButton(
         icon: const Icon(Icons.arrow_back, color: AppColors.onPrimary),
         onPressed: onBack ?? () => context.pop(),
       )
-          : PopupMenuButton<String>(
-        icon: const Icon(Icons.apps_rounded, color: AppColors.onPrimary),
-        tooltip: 'Más opciones',
-        color: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        offset: const Offset(0, 45), // Desplaza el menú hacia abajo
-        onSelected: (value) {
-          if (value == 'notificaciones') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No tienes notificaciones pendientes.'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          } else if (value == 'soporte') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Abriendo centro de soporte técnico...'),
-                backgroundColor: AppColors.secondary,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-          const PopupMenuItem<String>(
-            value: 'notificaciones',
-            child: Row(
-              children: [
-                Icon(Icons.notifications_none_rounded, color: AppColors.primary, size: 20),
-                SizedBox(width: 10),
-                Text('Notificaciones', style: TextStyle(fontFamily: 'Inter', color: AppColors.primary, fontSize: 14)),
-              ],
-            ),
-          ),
-          const PopupMenuItem<String>(
-            value: 'soporte',
-            child: Row(
-              children: [
-                Icon(Icons.headset_mic_outlined, color: AppColors.primary, size: 20),
-                SizedBox(width: 10),
-                Text('Soporte Técnico', style: TextStyle(fontFamily: 'Inter', color: AppColors.primary, fontSize: 14)),
-              ],
-            ),
-          ),
-        ],
-      ),
+          : null, // ✨ Menú inútil removido
       title: Text(
         title ?? 'AutoMatics',
         style: const TextStyle(

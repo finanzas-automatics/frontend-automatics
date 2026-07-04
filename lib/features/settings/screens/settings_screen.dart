@@ -6,14 +6,28 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../clients/providers/client_provider.dart'; // ✨ IMPORTANTE: Para consultar los créditos reales
+import '../../clients/providers/client_provider.dart';
 
-// ✨ NUEVO PROVEEDOR: Cuenta los créditos realmente colocados en la BD
+// ✨ Proveedor existente para créditos colocados
 final totalPlacedCreditsProvider = FutureProvider.autoDispose<int>((ref) async {
   final repo = ref.watch(clientRepositoryProvider);
-  // Llamamos a la API pidiendo solo 1 registro (para no saturar), filtrando por "aprobado"
   final res = await repo.getClients(page: 1, pageSize: 1, status: 'aprobado');
-  return res.totalCount; // Retorna el número exacto (ej. 2)
+  return res.totalCount;
+});
+
+// ✨ NUEVO PROVEEDOR: Para obtener las estadísticas de la cartera de clientes (Solo Aprobados y Borradores)
+final portfolioStatsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
+  final repo = ref.watch(clientRepositoryProvider);
+
+  // Hacemos 2 llamadas ligeras para obtener el conteo de cada estado real
+  final aprobados = await repo.getClients(page: 1, pageSize: 1, status: 'aprobado');
+  final borradores = await repo.getClients(page: 1, pageSize: 1, status: 'borrador');
+
+  return {
+    'Aprobados': aprobados.totalCount,
+    'Borradores': borradores.totalCount,
+    'Total': aprobados.totalCount + borradores.totalCount,
+  };
 });
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -24,10 +38,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  // Variables de estado para hacer los switches funcionales
-  bool _darkMode = false;
-  bool _notifications = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,21 +51,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _buildHeader(),
             const SizedBox(height: 24),
 
-            // 1. Tarjeta de Perfil (Con datos reales de tu authState)
+            // 1. Tarjeta de Perfil
             _buildProfileCard(),
             const SizedBox(height: 20),
 
-            // 2. Nuevo Panel: Rendimiento (Conectado a BD real)
+            // 2. Panel: Rendimiento Mensual
             _buildPerformanceCard(),
             const SizedBox(height: 20),
 
-            // 3. Sistema y Legal (Apilados para mejor diseño móvil)
-            _buildSystemCard(),
+            // 3. Panel: Resumen de Cartera (Corregido a tu flujo real)
+            _buildPortfolioCard(),
             const SizedBox(height: 20),
+
+            // 4. Legal
             _buildLegalCard(context),
             const SizedBox(height: 32),
 
-            // 4. Botón de Cerrar Sesión
+            // 5. Botón de Cerrar Sesión
             _buildLogoutButton(context),
             const SizedBox(height: 100),
           ],
@@ -74,14 +86,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         SizedBox(height: 6),
         Text(
-          'Gestiona tu cuenta, rendimiento y parámetros del sistema.',
+          'Gestiona tu cuenta, rendimiento y estado de cartera.',
           style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.onSurfaceVariant),
         ),
       ],
     );
   }
 
-  // ✨ TARJETA DE PERFIL (Diseño Premium + Datos Reales)
   Widget _buildProfileCard() {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
@@ -143,15 +154,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ✨ TARJETA: Rendimiento (Dinámica, ya no muestra el '14' quemado)
   Widget _buildPerformanceCard() {
     return Consumer(
         builder: (context, ref, child) {
           final totalAsync = ref.watch(totalPlacedCreditsProvider);
-
-          // Si está cargando o falla, mostramos 0 por defecto.
           final totalPlaced = totalAsync.value ?? 0;
-          const target = 20; // Meta mensual
+          const target = 20;
 
           return SectionCard(
             child: Column(
@@ -172,7 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Expanded(
                       child: _buildMetricItem(
                         icon: Icons.directions_car_filled_outlined,
-                        value: totalPlaced.toString(), // ✨ Total real de la BD
+                        value: totalPlaced.toString(),
                         label: 'Créditos\nColocados',
                         color: const Color(0xFF16A34A),
                       ),
@@ -181,7 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Expanded(
                       child: _buildMetricItem(
                         icon: Icons.pie_chart_outline_rounded,
-                        value: '${((totalPlaced / target) * 100).toInt()}%', // ✨ Tasa calculada
+                        value: '${((totalPlaced / target) * 100).toInt()}%',
                         label: 'Tasa de\nConversión',
                         color: AppColors.secondary,
                       ),
@@ -196,7 +204,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(99),
                   child: LinearProgressIndicator(
-                    value: (totalPlaced / target).clamp(0.0, 1.0), // ✨ Progreso real
+                    value: (totalPlaced / target).clamp(0.0, 1.0),
                     minHeight: 8,
                     backgroundColor: AppColors.surfaceContainerHigh,
                     color: AppColors.secondary,
@@ -220,69 +228,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ✨ SISTEMA FUNCIONAL (Modo oscuro y Notificaciones)
-  Widget _buildSystemCard() {
-    return SectionCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Row(
+  // ✨ WIDGET ACTUALIZADO: Resumen de Cartera (Solo Aprobados y Borradores)
+  Widget _buildPortfolioCard() {
+    return Consumer(
+        builder: (context, ref, child) {
+          final statsAsync = ref.watch(portfolioStatsProvider);
+
+          return SectionCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.settings_outlined, color: AppColors.primaryContainer, size: 20),
-                SizedBox(width: 8),
-                Text('Sistema', style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryContainer)),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.donut_large_rounded, color: AppColors.primaryContainer, size: 20),
+                      SizedBox(width: 8),
+                      Text('Estado de la Cartera', style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryContainer)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, indent: 20, endIndent: 20),
+
+                statsAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(30),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.secondary)),
+                  ),
+                  error: (e, s) => Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text('Error al cargar métricas: $e', style: const TextStyle(color: AppColors.error)),
+                  ),
+                  data: (stats) {
+                    final total = stats['Total'] ?? 0;
+                    if (total == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.all(30),
+                        child: Center(child: Text('Aún no tienes simulaciones o créditos activos.', style: TextStyle(color: AppColors.onSurfaceVariant))),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          // Grafico Circular Simplificado
+                          SizedBox(
+                            width: 80, height: 80,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Fondo total (Representa los Borradores como resto)
+                                CircularProgressIndicator(
+                                  value: 1.0, strokeWidth: 8, color: AppColors.secondaryContainer,
+                                ),
+                                // Progreso verde (Representa la cuota de Aprobados)
+                                CircularProgressIndicator(
+                                  value: stats['Aprobados']! / total, strokeWidth: 8, color: const Color(0xFF16A34A),
+                                ),
+                                Text(total.toString(), style: const TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          // Leyendas
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildPortfolioLegend(color: const Color(0xFF16A34A), label: 'Aprobados', count: stats['Aprobados']!),
+                                const SizedBox(height: 12),
+                                _buildPortfolioLegend(color: AppColors.secondaryContainer, label: 'Borradores', count: stats['Borradores']!),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
-          ),
-          _buildSwitchTile(
-            title: 'Modo Oscuro',
-            subtitle: 'Ajustar la apariencia visual',
-            icon: Icons.dark_mode_outlined,
-            value: _darkMode,
-            onChanged: (val) {
-              setState(() => _darkMode = val);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(val ? 'Modo Oscuro activado (Simulado)' : 'Modo Claro activado'),
-                duration: const Duration(seconds: 1),
-              ));
-            },
-          ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
-          _buildSwitchTile(
-            title: 'Notificaciones',
-            subtitle: 'Alertas de nuevos créditos y pagos',
-            icon: Icons.notifications_none_rounded,
-            value: _notifications,
-            onChanged: (val) {
-              setState(() => _notifications = val);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+          );
+        }
     );
   }
 
-  Widget _buildSwitchTile({required String title, required String subtitle, required IconData icon, required bool value, required ValueChanged<bool> onChanged}) {
-    return SwitchListTile(
-      value: value,
-      onChanged: onChanged,
-      activeColor: AppColors.secondary,
-      activeTrackColor: AppColors.secondaryContainer.withValues(alpha: 0.3),
-      secondary: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: AppColors.surfaceContainerLow, borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: AppColors.onSurfaceVariant, size: 20),
-      ),
-      title: Text(title, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
-      subtitle: Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+  Widget _buildPortfolioLegend({required Color color, required String label, required int count}) {
+    return Row(
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Expanded(child: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.onSurfaceVariant))),
+        Text(count.toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+      ],
     );
   }
 
-  // ✨ SECCIÓN LEGAL CON POPUPS
   Widget _buildLegalCard(BuildContext context) {
     return SectionCard(
       padding: EdgeInsets.zero,

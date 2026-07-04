@@ -169,7 +169,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  // Agregamos BuildContext context a la firma
   Widget _buildVanChart(BuildContext context, List<double> historyData, List<String> labels) {
     return SectionCard(
       child: Column(
@@ -235,7 +234,6 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // Agregamos el GestureDetector mágico para la línea
           Builder(
             builder: (innerContext) => GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -284,7 +282,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  // Agregamos BuildContext context a la firma
   Widget _buildTirChart(BuildContext context, List<double> rawData, List<String> labels) {
     final maxVal = rawData.isEmpty ? 1.0 : rawData.reduce((a, b) => a > b ? a : b);
     final bars = rawData.map((e) => maxVal == 0 ? 0.1 : (e / maxVal)).toList();
@@ -342,7 +339,6 @@ class DashboardScreen extends ConsumerWidget {
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
-                    // Agregamos el GestureDetector para cada barra
                     child: GestureDetector(
                       onTap: () {
                         _showDetailSheet(
@@ -443,26 +439,27 @@ class DashboardScreen extends ConsumerWidget {
               amount: 'S/ ${data.recentActivity[i].amount.toStringAsFixed(2)}',
               time: data.recentActivity[i].timeAgo,
               onTap: () {
-                // ✨ MAGIA CORREGIDA: Si ya está aprobado saca la notificación verde, si no, viaja a la ruta exacta de reportes
+                // ✨ MAGIA CORREGIDA: Ahora TODOS los créditos viajan a los indicadores para ser visualizados o descargados
                 if (data.recentActivity[i].description.toLowerCase().contains("aprobado")) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.white),
+                          const Icon(Icons.download_rounded, color: Colors.white),
                           const SizedBox(width: 8),
-                          Expanded(child: Text('El crédito de ${data.recentActivity[i].clientName} ya se encuentra aprobado.')),
+                          Expanded(child: Text('Abriendo el reporte del crédito aprobado de ${data.recentActivity[i].clientName}...')),
                         ],
                       ),
                       backgroundColor: const Color(0xFF16A34A),
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 2), // Ocultar rápido
                     ),
                   );
-                } else {
-                  // ✨ AHORA APUNTA EXACTAMENTE A LA PANTALLA DE TU CAPTURA
-                  context.go('/simulator/indicators', extra: data.recentActivity[i].id);
                 }
+
+                // Siempre viajamos a la ruta de indicadores, sin importar el estado
+                context.go('/simulator/indicators', extra: data.recentActivity[i].id);
               },
             ),
             if (i < data.recentActivity.length - 1) const Divider(height: 1),
