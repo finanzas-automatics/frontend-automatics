@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart'; // ✨ IMPORTANTE para la navegación
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 
 class AutomaticsAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -25,11 +26,16 @@ class AutomaticsAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.primary,
       elevation: 0,
       shadowColor: const Color(0xFF0A1F44).withValues(alpha: 0.05),
-      // ✨ LADO IZQUIERDO: Flecha de retroceso o completamente limpio
       leading: showBack
           ? IconButton(
         icon: const Icon(Icons.arrow_back, color: AppColors.onPrimary),
-        onPressed: onBack ?? () => context.pop(),
+        onPressed: onBack ?? () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(AppRoutes.dashboard);
+          }
+        },
       )
           : null, // ✨ Menú inútil removido
       title: Text(

@@ -310,15 +310,20 @@ class _TableCell extends StatelessWidget {
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 9,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-            color: boldColor ?? AppColors.onSurfaceVariant,
+        child: FittedBox(                    // 👈 nuevo: escala el texto si no cabe
+          fit: BoxFit.scaleDown,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 9,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+              color: boldColor ?? AppColors.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,                      // 👈 nuevo: evita overflow vertical
+            overflow: TextOverflow.ellipsis,  // 👈 nuevo: corta con "..." si aún así no cabe
           ),
-          textAlign: TextAlign.center,
         ),
       ),
     );

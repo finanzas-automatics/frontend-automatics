@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/common_widgets.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/simulator_provider.dart';
 import '../models/simulator_models.dart';
 import '../../clients/models/client_models.dart';
 import '../../clients/providers/client_provider.dart';
+import '../repositories/simulator_repository.dart';
 
 class SimulatorScreen extends ConsumerStatefulWidget {
   const SimulatorScreen({super.key});
@@ -29,8 +31,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   String _gracePeriod = 'Sin gracia';
   int _graceMonths = 0;
   double _cok = 10;
-  String _capitalization = 'Mensual (m=12)';
+  String _capitalization = 'Mensual';
   int _selectedClienteId = 0;
+  int _selectedVehiculoId = 0;
 
   bool _isLoading = false;
 
@@ -59,8 +62,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   Future<void> _simulate() async {
     setState(() => _isLoading = true);
     try {
+      final usuarioId = await ref.read(currentUserIdProvider.future);
       final request = SimulationRequest(
         clienteId: _selectedClienteId,
+        usuarioId: usuarioId,
+        vehiculoId: _selectedVehiculoId,
         currency: _currency,
         vehiclePrice: _vehiclePrice,
         initialPaymentPct: _initialPaymentPct,
@@ -393,6 +399,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
                   setState(() {
                     _selectedClienteId = newId;
+                    _selectedVehiculoId = selectedClient.vehicleId ?? 0;
 
                     // Auto-completamos el precio si el cliente tiene un vehículo
                     if (selectedClient.vehiclePrice != null) {
@@ -532,11 +539,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       helpText: 'Frecuencia de acumulación del interés para TNA.',
       child: _dropdown<String>(
         value: _capitalization,
-        items: const [
-          'Mensual (m=12)',
-          'Trimestral (m=4)',
-          'Semestral (m=2)'
-        ],
+        items: const ['Diaria', 'Mensual'],
         labelBuilder: (c) => c,
         onChanged: (v) => setState(() => _capitalization = v),
       ),
@@ -912,7 +915,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           valueColor: result.van < 0 ? AppColors.error : AppColors.secondary,
         ),
         _metricChip(
-          label: 'TIR (% anual)',
+          label: 'TIR (mensual)',
           value: '${(result.tirMonthly).toStringAsFixed(2)}%',
         ),
         _metricChip(

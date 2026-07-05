@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../providers/simulator_provider.dart';
 import '../models/simulator_models.dart';
+import '../repositories/simulator_repository.dart';
 
 class FinancialIndicatorsScreen extends ConsumerStatefulWidget {
   final int? creditId;

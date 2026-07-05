@@ -4,12 +4,25 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/api_client.dart';
 import '../models/auth_models.dart';
 import '../repositories/auth_repository.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
     ref.watch(secureStorageProvider),
   );
+});
+
+
+final currentUserIdProvider = FutureProvider<int>((ref) async {
+  final storage = ref.watch(secureStorageProvider);
+  final token = await storage.read(key: 'jwt_token');
+  if (token == null) return 0;
+
+  final decoded = JwtDecoder.decode(token);
+  final sub = decoded['sub'];
+  return int.tryParse(sub.toString()) ?? 0;
 });
 
 class AuthState {
@@ -95,4 +108,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     state = AuthState();
   }
+  Future<void> tryRestoreSession() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token != null && !JwtDecoder.isExpired(token)) {
+        final decoded = JwtDecoder.decode(token);
+        final expiresAt = JwtDecoder.getExpirationDate(token);
+
+        state = state.copyWith(
+          user: LoginResponse(
+            token: token,
+            name: decoded['nombres'] ?? '',
+            email: decoded['email'] ?? '',
+            role: '',
+            dni: decoded['dni'] ?? '',
+            expiresAt: expiresAt,
+          ),
+        );
+      }
+    } catch (e) {
+      print("No se pudo restaurar sesión: $e");
+    }
+  }
 }
+
+

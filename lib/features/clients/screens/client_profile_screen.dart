@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../simulator/repositories/simulator_repository.dart';
 import '../providers/client_provider.dart';
 import '../models/client_models.dart';
 import '../../simulator/providers/simulator_provider.dart';
@@ -385,9 +386,26 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Valor Actual Neto (VAN)', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                  const Text(
+                                    'Valor Actual Neto (VAN)',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('S/ ${van.toStringAsFixed(2)}', style: TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.w700, color: van >= 0 ? const Color(0xFF16A34A) : AppColors.error)),
+                                  Text(
+                                    'S/ ${van.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: van >= 0
+                                          ? const Color(0xFF16A34A)
+                                          : AppColors.error,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -395,15 +413,62 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('TIR Proyectada', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                  const Text(
+                                    'TIR Mensual',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('${tir.toStringAsFixed(2)}%', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                  Text(
+                                    '${tir.toStringAsFixed(2)}%',
+                                    style: const TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'TCEA (Costo Real Anual)',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${tcea.toStringAsFixed(2)}%',
+                                    style: const TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.secondaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Expanded(
+                              child: SizedBox(),
+                            ),
+                          ],
+                        ),
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(

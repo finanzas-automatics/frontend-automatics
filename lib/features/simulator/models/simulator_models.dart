@@ -77,7 +77,9 @@ class SimulationRequest {
     'plazoMeses':             termMonths,
     'tasaInteresAnual':       rateValue / 100,
     'esTasaEfectiva':         rateType == 'TEA',
-    'diasCapitalizacion':     rateType == 'TNA' ? 30 : 0,
+    'diasCapitalizacion': rateType == 'TNA'
+        ? (capitalization == 'diaria' ? 1 : 30)
+        : 0,
     'mesesGraciaTotal':       gracePeriodType == 'total'   ? graceMonths : 0,
     'mesesGraciaParcial':     gracePeriodType == 'parcial' ? graceMonths : 0,
     'porcentajeCuotaFinal':   finalPaymentPct / 100,

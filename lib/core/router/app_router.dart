@@ -1,5 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
@@ -27,67 +29,83 @@ class AppRoutes {
   static const settings = '/settings';
 }
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.login,
-  routes: [
-    GoRoute(
-      path: AppRoutes.login,
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.register,
-      builder: (context, state) => const RegisterScreen(),
-    ),
-    ShellRoute(
-      builder: (context, state, child) => MainScaffold(child: child),
-      routes: [
-        GoRoute(
-          path: AppRoutes.dashboard,
-          builder: (context, state) => const DashboardScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.clients,
-          builder: (context, state) => const ClientsListScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.registerClient,
-          builder: (context, state) => const RegisterClientScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.editClient,
-          builder: (context, state) {
-            final clientId = state.pathParameters['id'] ?? '';
-            return EditClientScreen(clientId: clientId);
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.clientProfile,
-          builder: (context, state) {
-            final clientId = state.pathParameters['id'] ?? '';
-            return ClientProfileScreen(clientId: clientId);
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.simulator,
-          builder: (context, state) => const SimulatorScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.paymentSchedule,
-          builder: (context, state) => const PaymentScheduleScreen(),
-        ),
-        GoRoute(
-          path: AppRoutes.financialIndicators,
-          builder: (context, state) {
-            // ✨ NUEVO: Atrapamos el ID si es que viene alguno
-            final creditId = state.extra as int?;
-            return FinancialIndicatorsScreen(creditId: creditId);
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.settings,
-          builder: (context, state) => const SettingsScreen(),
-        ),
-      ],
-    ),
-  ],
-);
+final goRouterProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  return GoRouter(
+    initialLocation: AppRoutes.login,
+    redirect: (context, state) {
+      final isLoggedIn = authState.user != null;
+      final isAuthRoute = state.matchedLocation == AppRoutes.login ||
+          state.matchedLocation == AppRoutes.register;
+
+      if (!isLoggedIn && !isAuthRoute) return AppRoutes.login;
+      if (isLoggedIn && isAuthRoute) return AppRoutes.dashboard;
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      ShellRoute(
+        builder: (context, state, child) => MainScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.dashboard,
+            builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.clients,
+            builder: (context, state) => const ClientsListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.registerClient,
+            builder: (context, state) => const RegisterClientScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.editClient,
+            builder: (context, state) {
+              final clientId = state.pathParameters['id'] ?? '';
+              return EditClientScreen(clientId: clientId);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.clientProfile,
+            builder: (context, state) {
+              final clientId = state.pathParameters['id'] ?? '';
+              return ClientProfileScreen(clientId: clientId);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.simulator,
+            builder: (context, state) => const SimulatorScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.paymentSchedule,
+            builder: (context, state) => const PaymentScheduleScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.financialIndicators,
+            builder: (context, state) {
+              final creditId = state.extra as int?;
+              return FinancialIndicatorsScreen(creditId: creditId);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (context, state) => const SettingsScreen(),
+          ),
+        ],
+      ),
+    ],
+  );
+});
+
+
+
+

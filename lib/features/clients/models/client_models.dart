@@ -206,6 +206,7 @@ class ClientListResponse {
   final String? vehicleName;
   final double? vehiclePrice;
   final String? vehicleCurrency;
+  final int? vehicleId;
 
   ClientListResponse({
     required this.id,
@@ -216,6 +217,7 @@ class ClientListResponse {
     this.vehicleName,
     this.vehiclePrice,
     this.vehicleCurrency,
+    this.vehicleId,
   });
 
   factory ClientListResponse.fromJson(Map<String, dynamic> json) {
@@ -228,6 +230,7 @@ class ClientListResponse {
       vehicleName: json['vehicleName'] as String?,
       vehiclePrice: json['vehiclePrice'] != null ? (json['vehiclePrice'] as num).toDouble() : null,
       vehicleCurrency: json['vehicleCurrency'] as String?,
+      vehicleId: json['vehicleId'] as int?,
     );
   }
 }
