@@ -231,13 +231,35 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
               ],
             ),
           ),
+
+          // ✨ NUEVO: ESTADO VACÍO MEJORADO PARA LA LISTA DE CLIENTES
           if (data.items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Text('No se encontraron clientes.', style: TextStyle(color: AppColors.onSurfaceVariant)),
+            Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: AppColors.surfaceContainerLow, shape: BoxShape.circle),
+                    child: const Icon(Icons.people_alt_outlined, color: AppColors.outline, size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No hay clientes aquí',
+                    style: TextStyle(fontFamily: 'Montserrat', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Registra a tu primer cliente presionando el botón "Nuevo Cliente" en la parte inferior de tu pantalla.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
+
           ...data.items.map((c) => _buildClientRow(context, c)),
-          _buildPagination(data),
+          if (data.items.isNotEmpty) _buildPagination(data),
         ],
       ),
     );
@@ -324,7 +346,6 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // ✨ MAGIA: Quitamos el StatusBadge de aquí como lo solicitaste
                     const SizedBox(height: 6),
                     Row(
                       children: [

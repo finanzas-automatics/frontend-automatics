@@ -17,7 +17,7 @@ class EditClientScreen extends ConsumerStatefulWidget {
 
 class _EditClientScreenState extends ConsumerState<EditClientScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _docNumController;
   late TextEditingController _nameController;
   late TextEditingController _lastNameController;
@@ -34,7 +34,6 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
 
   String _docType = 'DNI';
   String _currency = 'SOLES';
-  bool _available = true;
   String _status = 'activo';
 
   String _normalizeStatus(String status) {
@@ -99,7 +98,6 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
       _modelController.text = client.vehicle!.model;
       _priceController.text = client.vehicle!.price.toString();
       _currency = _normalizeCurrency(client.vehicle!.currency);
-      _available = client.vehicle!.status == 'disponible';
       _fuelTypeController.text = client.vehicle!.fuelType ?? '';
       _transmissionController.text = client.vehicle!.transmission ?? '';
       _engineController.text = client.vehicle!.engine ?? '';
@@ -281,7 +279,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
           const Divider(height: 20),
           _buildDropdown('Tipo de Documento', _docType, ['DNI', 'CE', 'Pasaporte'], (v) => setState(() => _docType = v!)),
           const SizedBox(height: 14),
-          _buildEditableField('Número de Documento', _docNumController, TextInputType.number),
+          _buildEditableField('Número de Documento', _docNumController, TextInputType.text),
           const SizedBox(height: 14),
           _buildEditableField('Nombres', _nameController, TextInputType.name),
           const SizedBox(height: 14),
@@ -326,8 +324,6 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
           _buildEditableField('Transmisión', _transmissionController, TextInputType.text, required: false),
           const SizedBox(height: 14),
           _buildEditableField('Motor', _engineController, TextInputType.text, required: false),
-          const SizedBox(height: 14),
-          _buildVehicleStatusField(),
         ],
       ),
     );
@@ -434,40 +430,6 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
     );
   }
 
-  Widget _buildVehicleStatusField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Estado del Vehículo', style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _radioOption('Disponible', true, const Color(0xFFDCFCE7), const Color(0xFF166534)),
-            const SizedBox(width: 16),
-            _radioOption('No disponible', false, AppColors.errorContainer, AppColors.onErrorContainer),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _radioOption(String label, bool value, Color bgColor, Color textColor) {
-    return GestureDetector(
-      onTap: () => setState(() => _available = value),
-      child: Row(
-        children: [
-          // ignore: deprecated_member_use
-          Radio<bool>(value: value, groupValue: _available, onChanged: (v) => setState(() => _available = v!), activeColor: AppColors.secondary),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(99)),
-            child: Text(label, style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: textColor)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
@@ -506,9 +468,9 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     try {
       final request = ClientUpdateRequest(
         documentType: _docType,
@@ -525,7 +487,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
           model: _modelController.text,
           price: double.tryParse(_priceController.text) ?? 0,
           currency: _currency,
-          status: _available ? 'disponible' : 'no_disponible',
+          status: 'disponible', // ✨ Forzado internamente
           fuelType: _fuelTypeController.text.isNotEmpty ? _fuelTypeController.text : null,
           transmission: _transmissionController.text.isNotEmpty ? _transmissionController.text : null,
           engine: _engineController.text.isNotEmpty ? _engineController.text : null,
@@ -535,7 +497,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
       final repo = ref.read(clientRepositoryProvider);
       final clientId = int.parse(widget.clientId);
       await repo.updateClient(clientId, request);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cambios guardados'), backgroundColor: AppColors.primary),
@@ -580,12 +542,12 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
 
   Future<void> _handleDelete() async {
     setState(() => _isDeleting = true);
-    
+
     try {
       final repo = ref.read(clientRepositoryProvider);
       final clientId = int.parse(widget.clientId);
       await repo.deleteClient(clientId);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cliente eliminado'), backgroundColor: AppColors.primary),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -17,7 +16,7 @@ class RegisterClientScreen extends ConsumerStatefulWidget {
 
 class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _docController;
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
@@ -35,8 +34,19 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
 
   String _docType = 'DNI';
   String _currency = 'SOLES';
-  bool _available = true;
   bool _isLoading = false;
+
+  // ✨ FUNCIÓN PARA CAMBIAR EL TEXTO DE EJEMPLO SEGÚN EL DOCUMENTO
+  String _getDocHint() {
+    switch (_docType) {
+      case 'CE':
+        return 'Ej. 000123456';
+      case 'Pasaporte':
+        return 'Ej. P1234567';
+      default:
+        return 'Ej. 72635481';
+    }
+  }
 
   @override
   void initState() {
@@ -187,7 +197,8 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
           const SizedBox(height: 16),
           _buildDocTypeField(),
           const SizedBox(height: 14),
-          _buildTextField('Número de Documento', 'Ej. 72635481', _docController, TextInputType.number),
+          // ✨ AQUÍ LLAMAMOS A LA FUNCIÓN DEL TEXTO DINÁMICO
+          _buildTextField('Número de Documento', _getDocHint(), _docController, TextInputType.text),
           const SizedBox(height: 14),
           _buildTextField('Nombres', 'Nombres completos', _firstNameController, TextInputType.name),
           const SizedBox(height: 14),
@@ -226,8 +237,7 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
           _buildTextField('Transmisión', 'Ej. Automática', _transmissionController, TextInputType.text, required: false),
           const SizedBox(height: 14),
           _buildTextField('Motor', 'Ej. 1.8L', _engineController, TextInputType.text, required: false),
-          const SizedBox(height: 14),
-          _buildVehicleStatusField(),
+          // ✨ SE ELIMINÓ EL ESTADO DEL VEHÍCULO DE LA UI
         ],
       ),
     );
@@ -271,7 +281,12 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
               value: _docType,
               isExpanded: true,
               items: ['DNI', 'CE', 'Pasaporte'].map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontFamily: 'Inter', fontSize: 15)))).toList(),
-              onChanged: (v) => setState(() => _docType = v!),
+              onChanged: (v) {
+                // Al cambiar el combo, refresca la UI para actualizar el texto gris
+                setState(() {
+                  _docType = v!;
+                });
+              },
               icon: const Icon(Icons.edit_outlined, color: AppColors.onSurfaceVariant),
             ),
           ),
@@ -362,45 +377,6 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
     );
   }
 
-  Widget _buildVehicleStatusField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Estado del Vehículo', style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _radioOption('Disponible', true, const Color(0xFFDCFCE7), const Color(0xFF166534)),
-            const SizedBox(width: 16),
-            _radioOption('No disponible', false, AppColors.errorContainer, AppColors.onErrorContainer),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _radioOption(String label, bool value, Color bgColor, Color textColor) {
-    return GestureDetector(
-      onTap: () => setState(() => _available = value),
-      child: Row(
-        children: [
-          // ignore: deprecated_member_use
-          Radio<bool>(
-            value: value,
-            groupValue: _available,
-            onChanged: (v) => setState(() => _available = v!),
-            activeColor: AppColors.secondary,
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(99)),
-            child: Text(label, style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: textColor)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSubmitButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -416,9 +392,9 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final request = ClientCreateRequest(
         documentType: _docType,
@@ -435,7 +411,7 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
           year: int.tryParse(_yearController.text),
           price: double.tryParse(_priceController.text) ?? 0,
           currency: _currency,
-          status: _available ? 'disponible' : 'no_disponible',
+          status: 'disponible', // ✨ Forzado internamente para no romper el backend
           fuelType: _fuelTypeController.text.isNotEmpty ? _fuelTypeController.text : null,
           transmission: _transmissionController.text.isNotEmpty ? _transmissionController.text : null,
           engine: _engineController.text.isNotEmpty ? _engineController.text : null,
@@ -444,7 +420,7 @@ class _RegisterClientScreenState extends ConsumerState<RegisterClientScreen> {
 
       final repo = ref.read(clientRepositoryProvider);
       await repo.createClient(request);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cliente guardado correctamente'), backgroundColor: AppColors.primary),
