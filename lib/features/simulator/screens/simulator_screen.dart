@@ -28,10 +28,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   double _finalPaymentPct = 30;
   int _termMonths = 36;
 
-  // ✨ VALORES POR DEFECTO IGUALADOS EXACTAMENTE AL EXCEL
   String _rateType = 'TNA';
   double _rateValue = 15;
-  String _capitalization = 'Mensual';
+
+  // ✨ CORRECCIÓN DE CAPITALIZACIÓN: Ahora dice "Diario"
+  String _capitalization = 'Diario';
 
   String _gracePeriod = 'Sin gracia';
   int _graceMonths = 0;
@@ -43,25 +44,25 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
   bool _isLoading = false;
 
-  // ✨ GASTOS PERIÓDICOS (Sincronizados con Excel)
-  double _tasaDesgravamenMensual = 0.05; // 0.050%
-  double _seguroVehicularMensual = 0.36; // 0.360%
-  double _portesMensuales = 3.50;
-  double _gpsMensual = 15.0;
+  // ✨ GASTOS PERIÓDICOS EN CERO (Por defecto)
+  double _tasaDesgravamenMensual = 0.0;
+  double _seguroVehicularMensual = 0.0;
+  double _portesMensuales = 0.0;
+  double _gpsMensual = 0.0;
   double _gastosAdmMensuales = 0.0;
 
-  // ✨ GASTOS INICIALES (Sincronizados con Excel)
-  double _costesNotariales = 100.0;
-  double _costesRegistrales = 15.0;
-  double _tasacion = 200.0;
-  double _comisionEstudio = 100.0;
+  // ✨ GASTOS INICIALES EN CERO (Por defecto)
+  double _costesNotariales = 0.0;
+  double _costesRegistrales = 0.0;
+  double _tasacion = 0.0;
+  double _comisionEstudio = 0.0;
   double _comisionActivacion = 0.0;
 
-  // ✨ FINANCIAMIENTO DE GASTOS (Sincronizados con Excel)
-  bool _financiarNotariales = true;
+  // ✨ FINANCIAMIENTO DE GASTOS DESACTIVADO (Por defecto)
+  bool _financiarNotariales = false;
   bool _financiarRegistrales = false;
-  bool _financiarTasacion = true;
-  bool _financiarEstudio = true;
+  bool _financiarTasacion = false;
+  bool _financiarEstudio = false;
   bool _financiarActivacion = false;
 
   String get _currencySymbol => _currency == 'SOLES' ? 'S/' : 'US\$';
@@ -625,7 +626,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       helpText: 'Frecuencia de acumulación del interés para TNA.',
       child: _dropdown<String>(
         value: _capitalization,
-        items: const ['Diaria', 'Mensual'],
+        // ✨ Opciones corregidas a Diario / Mensual
+        items: const ['Diario', 'Mensual'],
         labelBuilder: (c) => c,
         onChanged: (v) => setState(() => _capitalization = v),
       ),
@@ -1207,7 +1209,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           ),
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.outline,
-          initiallyExpanded: true, // Lo dejo abierto por si quieres revisar al toque
+          initiallyExpanded: true,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1244,7 +1246,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
                   Row(
                     children: [
-                      // ✨ AQUÍ ESTÁ EL MAX DECIMALS A 4
                       Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', maxDecimals: 4, min: 0, max: 5, onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
                       const SizedBox(width: 12),
                       Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', maxDecimals: 4, min: 0, max: 5, onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),

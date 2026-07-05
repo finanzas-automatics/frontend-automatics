@@ -47,10 +47,10 @@ class SimulationRequest {
     required this.gracePeriodType,
     required this.graceMonths,
     required this.cok,
-    // ✨ VARIABLES INICIALIZADAS EN EL CONSTRUCTOR
-    this.tasaDesgravamenMensual = 0.049,
-    this.seguroVehicularMensual = 0.03,
-    this.portesMensuales = 3.50,
+    // ✨ VARIABLES INICIALIZADAS EN 0.0 (Como lo pediste)
+    this.tasaDesgravamenMensual = 0.0,
+    this.seguroVehicularMensual = 0.0,
+    this.portesMensuales = 0.0,
     this.gpsMensual = 0.0,
     this.gastosAdmMensuales = 0.0,
     this.costesNotariales = 0.0,
@@ -74,8 +74,6 @@ class SimulationRequest {
   }
 
   Map<String, dynamic> toJson() => {
-
-
     'clienteId':              clienteId,
     'vehiculoId':             vehiculoId,
     'usuarioId':              usuarioId,
@@ -85,14 +83,18 @@ class SimulationRequest {
     'plazoMeses':             termMonths,
     'tasaInteresAnual':       _round(rateValue / 100, 6),
     'esTasaEfectiva':         rateType == 'TEA',
+
+    // ✨ CORRECCIÓN CRÍTICA: A prueba de mayúsculas/minúsculas y variaciones
     'diasCapitalizacion': rateType == 'TNA'
-        ? (capitalization == 'diaria' ? 1 : 30)
+        ? ((capitalization?.toLowerCase() == 'diaria' || capitalization?.toLowerCase() == 'diario') ? 1 : 30)
         : 0,
-    'mesesGraciaTotal':       gracePeriodType == 'total'   ? graceMonths : 0,
-    'mesesGraciaParcial':     gracePeriodType == 'parcial' ? graceMonths : 0,
+
+    // ✨ CORRECCIÓN EXTRA: También fallaban los meses de gracia por las mayúsculas de la UI
+    'mesesGraciaTotal':       gracePeriodType.toLowerCase() == 'total'   ? graceMonths : 0,
+    'mesesGraciaParcial':     gracePeriodType.toLowerCase() == 'parcial' ? graceMonths : 0,
+
     'porcentajeCuotaFinal':   finalPaymentPct / 100,
     'tasaCokAnual':           _round(cok / 100, 6),
-
 
     'tasaDesgravamenMensual': _round(tasaDesgravamenMensual / 100, 6),
     'seguroVehicularMensual': _round(seguroVehicularMensual / 100, 6),
