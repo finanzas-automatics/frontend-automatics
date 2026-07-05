@@ -27,35 +27,41 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   double _initialPaymentPct = 20;
   double _finalPaymentPct = 30;
   int _termMonths = 36;
-  String _rateType = 'TEA';
+
+  // ✨ VALORES POR DEFECTO IGUALADOS EXACTAMENTE AL EXCEL
+  String _rateType = 'TNA';
   double _rateValue = 15;
+  String _capitalization = 'Mensual';
+
   String _gracePeriod = 'Sin gracia';
   int _graceMonths = 0;
   double _cok = 10;
-  String _capitalization = 'Mensual';
+
   int _selectedClienteId = 0;
   int _selectedVehiculoId = 0;
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
 
-  // ✨ NUEVAS VARIABLES DE ESTADO PARA EL EXCEL (Con valores por defecto)
-  double _tasaDesgravamenMensual = 0.049;
-  double _seguroVehicularMensual = 0.03;
+  // ✨ GASTOS PERIÓDICOS (Sincronizados con Excel)
+  double _tasaDesgravamenMensual = 0.05; // 0.050%
+  double _seguroVehicularMensual = 0.36; // 0.360%
   double _portesMensuales = 3.50;
-  double _gpsMensual = 0.0;
+  double _gpsMensual = 15.0;
   double _gastosAdmMensuales = 0.0;
 
-  double _costesNotariales = 0.0;
-  double _costesRegistrales = 0.0;
-  double _tasacion = 0.0;
-  double _comisionEstudio = 0.0;
+  // ✨ GASTOS INICIALES (Sincronizados con Excel)
+  double _costesNotariales = 100.0;
+  double _costesRegistrales = 15.0;
+  double _tasacion = 200.0;
+  double _comisionEstudio = 100.0;
   double _comisionActivacion = 0.0;
 
-  bool _financiarNotariales = false;
+  // ✨ FINANCIAMIENTO DE GASTOS (Sincronizados con Excel)
+  bool _financiarNotariales = true;
   bool _financiarRegistrales = false;
-  bool _financiarTasacion = false;
-  bool _financiarEstudio = false;
+  bool _financiarTasacion = true;
+  bool _financiarEstudio = true;
   bool _financiarActivacion = false;
 
   String get _currencySymbol => _currency == 'SOLES' ? 'S/' : 'US\$';
@@ -89,7 +95,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         gracePeriodType: _gracePeriod,
         graceMonths: _gracePeriod == 'Sin gracia' ? 0 : _graceMonths,
         cok: _cok,
-        // ✨ NUEVOS DATOS ENVIADOS EN EL REQUEST
         tasaDesgravamenMensual: _tasaDesgravamenMensual,
         seguroVehicularMensual: _seguroVehicularMensual,
         portesMensuales: _portesMensuales,
@@ -192,9 +197,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               label: 'Precio del Vehículo *',
               helpText: 'Se obtiene automáticamente del vehículo del cliente seleccionado.',
               child: TextFormField(
-                key: ValueKey(_vehiclePrice), // Cambia en vivo al seleccionar cliente
+                key: ValueKey(_vehiclePrice),
                 initialValue: '$_currencySymbol ${_vehiclePrice.toStringAsFixed(2)}',
-                readOnly: true, // Bloqueado
+                readOnly: true,
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 16,
@@ -410,8 +415,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         padding: const EdgeInsets.all(4),
         child: Row(
           children: ['SOLES', 'DÓLARES'].map((c) {
-
-            // Hacemos que la comparación sea a prueba de balas (ignorando tildes y mayúsculas/minúsculas)
             final String currentNorm = _currency.toUpperCase().replaceAll('Ó', 'O');
             final String btnNorm = c.toUpperCase().replaceAll('Ó', 'O');
             final bool sel = currentNorm == btnNorm;
@@ -423,7 +426,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    // Siempre azulito vibrante si está seleccionado, esté bloqueado o no
                     color: sel ? AppColors.secondary : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -435,7 +437,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: sel
-                            ? AppColors.onSecondary // Letra blanca si está azulito
+                            ? AppColors.onSecondary
                             : AppColors.onSurfaceVariant.withValues(alpha: isLocked ? 0.4 : 1.0),
                       ),
                     ),
@@ -449,10 +451,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     );
   }
 
-
-
   Widget _buildClientSearchDropdown() {
-    // 1. Escuchamos a tu provider de clientes para obtener la lista desde la BD
     final clientsAsync = ref.watch(clientsListProvider);
 
     return _buildField(
@@ -462,7 +461,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         loading: () => const CircularProgressIndicator(),
         error: (err, stack) => Text('Error al cargar clientes: $err', style: const TextStyle(color: AppColors.error)),
         data: (pagedData) {
-          final clients = pagedData.items; // Extraemos la lista de tu PagedResponse
+          final clients = pagedData.items;
 
           return Container(
             width: double.infinity,
@@ -471,7 +470,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: DropdownMenu<int>(
-              width: MediaQuery.of(context).size.width - 32, // Para que ocupe todo el ancho
+              width: MediaQuery.of(context).size.width - 32,
               hintText: 'Escribe para buscar...',
               textStyle: const TextStyle(
                 fontFamily: 'Inter',
@@ -483,31 +482,26 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
-              // Aquí le decimos qué hacer cuando se selecciona uno
               onSelected: (int? newId) {
                 if (newId != null) {
-                  // Buscamos toda la info del cliente seleccionado
                   final selectedClient = clients.firstWhere((c) => c.id == newId);
 
                   setState(() {
                     _selectedClienteId = newId;
                     _selectedVehiculoId = selectedClient.vehicleId ?? 0;
 
-                    // Auto-completamos el precio si el cliente tiene un vehículo
                     if (selectedClient.vehiclePrice != null) {
                       _vehiclePrice = selectedClient.vehiclePrice!;
                     } else {
-                      _vehiclePrice = 0.0; // Si no tiene vehículo registrado
+                      _vehiclePrice = 0.0;
                     }
 
-                    // Auto-completamos la moneda si el cliente la definió
                     if (selectedClient.vehicleCurrency != null) {
                       _currency = selectedClient.vehicleCurrency!;
                     }
                   });
                 }
               },
-              // Aquí mapeamos la lista de clientes para que se dibujen
               dropdownMenuEntries: clients.map((client) {
                 return DropdownMenuEntry<int>(
                   value: client.id,
@@ -788,7 +782,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       key: ValueKey(value),
       initialValue: value == value.truncate()
           ? value.toInt().toString()
-          : value.toStringAsFixed(2),
+          : value.toStringAsFixed(maxDecimals == 2 ? 2 : 4).replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), ""),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(
@@ -1213,6 +1207,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           ),
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.outline,
+          initiallyExpanded: true, // Lo dejo abierto por si quieres revisar al toque
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1249,9 +1244,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
                   Row(
                     children: [
-                      Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', maxDecimals: 2, min: 0, max: 5, onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
+                      // ✨ AQUÍ ESTÁ EL MAX DECIMALS A 4
+                      Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', maxDecimals: 4, min: 0, max: 5, onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', maxDecimals: 2, min: 0, max: 5, onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),
+                      Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', maxDecimals: 4, min: 0, max: 5, onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1265,7 +1261,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     );
   }
 
-  // ✨ HELPER PARA LOS GASTOS INICIALES (Input + Switch)
   Widget _buildGastoInicialRow(String label, double value, bool isFinanced, ValueChanged<double> onChanged, ValueChanged<bool> onSwitch) {
     return Row(
       children: [
