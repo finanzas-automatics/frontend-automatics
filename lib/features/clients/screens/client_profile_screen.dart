@@ -348,23 +348,13 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => context.go('/simulator/indicators', extra: id),
-                                      icon: const Icon(Icons.analytics_outlined, size: 16),
-                                      label: const Text('Ver Detalle Técnico', style: TextStyle(fontSize: 12)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () {},
-                                      child: const Text('Pagar Cuota', style: TextStyle(fontSize: 12)),
-                                    ),
-                                  ),
-                                ],
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => context.go('/simulator/indicators', extra: id),
+                                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                                  label: const Text('Ver Detalle Técnico', style: TextStyle(fontSize: 12)),
+                                ),
                               ),
                             ],
                           ),

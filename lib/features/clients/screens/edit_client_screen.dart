@@ -133,7 +133,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
       backgroundColor: AppColors.background,
       appBar: AutomaticsAppBar(
         showBack: true,
-        onBack: () => context.go('/clients'),
+        onBack: () => context.go('/clients/${widget.clientId}'),
       ),
       body: clientAsync.when(
         data: (client) {
@@ -483,7 +483,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _isSaving ? null : () => context.go('/clients'),
+                onPressed: _isSaving ? null : () => context.go('/clients/${widget.clientId}'),
                 child: const Text('Cancelar'),
               ),
             ),
@@ -542,7 +542,7 @@ class _EditClientScreenState extends ConsumerState<EditClientScreen> {
         );
         ref.invalidate(clientDetailProvider(clientId));
         ref.invalidate(clientsListProvider);
-        context.go('/clients');
+        context.go('/clients/$clientId');
       }
     } catch (e) {
       if (mounted) {

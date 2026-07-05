@@ -122,9 +122,9 @@ class PaymentScheduleScreen extends ConsumerWidget {
             crossAxisSpacing: 16, mainAxisSpacing: 12, childAspectRatio: 2.5,
             children: [
               _SummaryItem(label: 'Monto de Préstamo', value: 'S/ ${result.loanAmount.toStringAsFixed(2)}', valueColor: AppColors.primaryContainer),
-              _SummaryItem(label: 'TIR Mensual', value: '${result.tirMonthly.toStringAsFixed(2)}%', valueColor: AppColors.primaryContainer),
+              _SummaryItem(label: 'TIR Mensual', value: '${result.tirMonthly.toStringAsFixed(4)}%', valueColor: AppColors.primaryContainer),
               _SummaryItem(label: 'Plazo', value: '${result.schedule.length} meses', valueColor: AppColors.primaryContainer),
-              _SummaryItem(label: 'Cuota Mensual', value: 'S/ ${result.monthlyPayment.toStringAsFixed(2)}', valueColor: AppColors.secondary),
+              _SummaryItem(label: 'Cuota Mensual', value: 'S/ ${result.monthlyPayment.toStringAsFixed(4)}', valueColor: AppColors.secondary),
             ],
           ),
           const Divider(height: 20),

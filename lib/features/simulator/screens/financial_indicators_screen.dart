@@ -241,6 +241,8 @@ class _FinancialIndicatorsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.creditId == null) _buildLastSimulationBanner(),
+            if (widget.creditId == null) const SizedBox(height: 12),
             _buildHeader(),
             const SizedBox(height: 20),
             _buildIndicatorCards(result),
@@ -256,6 +258,28 @@ class _FinancialIndicatorsScreenState
     );
   }
 
+  Widget _buildLastSimulationBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF9C3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFEAB308).withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.history_outlined, size: 16, color: Color(0xFF854D0E)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Mostrando la última simulación realizada, no un crédito específico.',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF854D0E)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   // ── HEADER ────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {

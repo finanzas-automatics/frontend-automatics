@@ -11,6 +11,7 @@ class MainScaffold extends StatelessWidget {
 
   int _locationToIndex(String location) {
     if (location.startsWith('/clients')) return 1;
+    if (location.startsWith('/simulator/indicators')) return 3;
     if (location.startsWith('/simulator')) return 2;
     if (location == '/settings') return 4;
     return 0;

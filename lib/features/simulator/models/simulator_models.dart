@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class SimulationRequest {
   final String currency;
   final double vehiclePrice;
@@ -11,7 +13,6 @@ class SimulationRequest {
   final int graceMonths;
   final double cok;
 
-  // ✨ NUEVAS VARIABLES DE GASTOS Y SEGUROS AÑADIDAS AQUÍ
   final double tasaDesgravamenMensual;
   final double seguroVehicularMensual;
   final double portesMensuales;
@@ -67,7 +68,14 @@ class SimulationRequest {
     this.usuarioId  = 0,
   });
 
+  double _round(double value, int decimals) {
+    final factor = math.pow(10, decimals);
+    return (value * factor).round() / factor;
+  }
+
   Map<String, dynamic> toJson() => {
+
+
     'clienteId':              clienteId,
     'vehiculoId':             vehiculoId,
     'usuarioId':              usuarioId,
@@ -75,7 +83,7 @@ class SimulationRequest {
     'moneda':                 currency,
     'porcentajeCuotaInicial': initialPaymentPct / 100,
     'plazoMeses':             termMonths,
-    'tasaInteresAnual':       rateValue / 100,
+    'tasaInteresAnual':       _round(rateValue / 100, 6),
     'esTasaEfectiva':         rateType == 'TEA',
     'diasCapitalizacion': rateType == 'TNA'
         ? (capitalization == 'diaria' ? 1 : 30)
@@ -83,12 +91,11 @@ class SimulationRequest {
     'mesesGraciaTotal':       gracePeriodType == 'total'   ? graceMonths : 0,
     'mesesGraciaParcial':     gracePeriodType == 'parcial' ? graceMonths : 0,
     'porcentajeCuotaFinal':   finalPaymentPct / 100,
-    'tasaCokAnual':           cok / 100,
+    'tasaCokAnual':           _round(cok / 100, 6),
 
-    // ✨ ENVÍO DE LAS NUEVAS VARIABLES AL BACKEND
-    // Los porcentajes ingresados se dividen entre 100
-    'tasaDesgravamenMensual': tasaDesgravamenMensual / 100,
-    'seguroVehicularMensual': seguroVehicularMensual / 100,
+
+    'tasaDesgravamenMensual': _round(tasaDesgravamenMensual / 100, 6),
+    'seguroVehicularMensual': _round(seguroVehicularMensual / 100, 6),
     'portesMensuales':        portesMensuales,
     'gpsMensual':             gpsMensual,
     'gastosAdmMensuales':     gastosAdmMensuales,
@@ -120,6 +127,8 @@ class SimulationResponse {
   final double totalInterest;
   final double totalPayment;
   final List<ScheduleRowResponse> schedule;
+  final String riskClassification;
+  final String riskDecision;
 
   SimulationResponse({
     required this.id,
@@ -134,6 +143,8 @@ class SimulationResponse {
     required this.totalInterest,
     required this.totalPayment,
     required this.schedule,
+    this.riskClassification = '',
+    this.riskDecision = '',
   });
 
   factory SimulationResponse.fromJson(Map<String, dynamic> json) {
@@ -145,7 +156,6 @@ class SimulationResponse {
     final totalInterest = schedule.fold(0.0, (sum, r) => sum + r.interest);
     final totalPayment  = schedule.fold(0.0, (sum, r) => sum + r.totalPayment);
 
-    // Funciones a prueba de balas para evitar el error Type 'Null' is not a subtype
     int parseId(dynamic value) {
       if (value == null) return 0;
       if (value is int) return value;
@@ -162,6 +172,8 @@ class SimulationResponse {
       return 0.0;
     }
 
+    final riesgo = json['evaluacionRiesgo'] as Map<String, dynamic>?;
+
     return SimulationResponse(
       id:             parseId(json['id']),
       loanAmount:     parseDouble(json['montoPrestamo']),
@@ -175,6 +187,8 @@ class SimulationResponse {
       totalInterest:  totalInterest,
       totalPayment:   totalPayment,
       schedule:       schedule,
+      riskClassification: riesgo?['clasificacion'] as String? ?? '',
+      riskDecision:       riesgo?['decisionAutomatica'] as String? ?? '',
     );
   }
 }

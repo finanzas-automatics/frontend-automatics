@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +35,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   String _capitalization = 'Mensual';
   int _selectedClienteId = 0;
   int _selectedVehiculoId = 0;
+  final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
 
@@ -60,6 +62,15 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   double get _initialPaymentAmt => _vehiclePrice * _initialPaymentPct / 100;
 
   Future<void> _simulate() async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Revisa los campos marcados en rojo antes de simular.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final usuarioId = await ref.read(currentUserIdProvider.future);
@@ -128,6 +139,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             if (result != null) ...[
               _buildResultsBanner(),
               const SizedBox(height: 16),
+              _buildRiskBanner(result),
+              const SizedBox(height: 16),
               _buildMainMetrics(result),
               const SizedBox(height: 12),
               _buildSecondaryMetrics(result),
@@ -144,131 +157,172 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
   Widget _buildFormCard() {
     return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: Text(
-                  'Simulador — Compra Inteligente',
-                  style: TextStyle(
-                    fontFamily: 'Montserrat',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Flexible(
+                  child: Text(
+                    'Simulador — Compra Inteligente',
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                _helpChip(),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildClientSearchDropdown(),
+
+            const SizedBox(height: 16),
+            _buildCurrencyToggle(),
+            const SizedBox(height: 16),
+
+            _buildField(
+              label: 'Precio del Vehículo *',
+              helpText: 'Se obtiene automáticamente del vehículo del cliente seleccionado.',
+              child: TextFormField(
+                key: ValueKey(_vehiclePrice), // Cambia en vivo al seleccionar cliente
+                initialValue: '$_currencySymbol ${_vehiclePrice.toStringAsFixed(2)}',
+                readOnly: true, // Bloqueado
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurfaceVariant,
+                ),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppColors.outline),
+                  filled: true,
+                  fillColor: AppColors.surfaceContainerLow.withValues(alpha: 0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
-              _helpChip(),
+            ),
+
+            const SizedBox(height: 16),
+            _buildSliderField(),
+            const SizedBox(height: 16),
+            _buildField(
+              label: 'Cuota Final Inteligente (%)',
+              child: _numericInput(
+                value: _finalPaymentPct,
+                suffix: '%',
+                min: 0,
+                max: 99,
+                onChanged: (v) => setState(() => _finalPaymentPct = v),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildTermAndRateRow(),
+            const SizedBox(height: 16),
+            _buildField(
+              label: 'Valor de la Tasa (%) *',
+              helpText: _rateType == 'TEA'
+                  ? 'TEM = (1 + TEA)^(1/12) − 1'
+                  : 'TNA capitalizable según frecuencia seleccionada.',
+              child: _numericInput(
+                value: _rateValue,
+                suffix: '%',
+                min: 0.01,
+                max: 100,
+                onChanged: (v) => setState(() => _rateValue = v),
+              ),
+            ),
+            if (_rateType == 'TNA') ...[
+              const SizedBox(height: 16),
+              _buildCapitalizationDropdown(),
             ],
-          ),
-          const SizedBox(height: 20),
-
-          // ✅ 1. AQUÍ ESTÁ TU NUEVO BUSCADOR DE CLIENTES
-          _buildClientSearchDropdown(),
-
-          const SizedBox(height: 16),
-          _buildCurrencyToggle(),
-          const SizedBox(height: 16),
-
-          // ✅ 2. AQUÍ ESTÁ TU NUEVO CAMPO DE PRECIO BLOQUEADO
-          _buildField(
-            label: 'Precio del Vehículo *',
-            helpText: 'Se obtiene automáticamente del vehículo del cliente seleccionado.',
-            child: TextFormField(
-              key: ValueKey(_vehiclePrice), // Cambia en vivo al seleccionar cliente
-              initialValue: '$_currencySymbol ${_vehiclePrice.toStringAsFixed(2)}',
-              readOnly: true, // Bloqueado
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onSurfaceVariant, // Color apagado
-              ),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppColors.outline),
-                filled: true,
-                fillColor: AppColors.surfaceContainerLow.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                ),
+            const SizedBox(height: 16),
+            _buildGracePeriodSelector(),
+            if (_gracePeriod != 'Sin gracia') ...[
+              const SizedBox(height: 16),
+              _buildGraceMonthsStepper(),
+            ],
+            const SizedBox(height: 16),
+            _buildField(
+              label: 'Tasa de Descuento — COK (%)',
+              helpText: 'Costo de Oportunidad del Capital. Usado para calcular el VAN.',
+              child: _numericInput(
+                value: _cok,
+                suffix: '%',
+                min: 0,
+                max: 100,
+                onChanged: (v) => setState(() => _cok = v),
               ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-          _buildSliderField(),
-          const SizedBox(height: 16),
-          _buildField(
-            label: 'Cuota Final Inteligente (%)',
-            child: _numericInput(
-              value: _finalPaymentPct,
-              suffix: '%',
-              onChanged: (v) => setState(() => _finalPaymentPct = v),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildTermAndRateRow(),
-          const SizedBox(height: 16),
-          _buildField(
-            label: 'Valor de la Tasa (%) *',
-            helpText: _rateType == 'TEA'
-                ? 'TEM = (1 + TEA)^(1/12) − 1'
-                : 'TNA capitalizable según frecuencia seleccionada.',
-            child: _numericInput(
-              value: _rateValue,
-              suffix: '%',
-              onChanged: (v) => setState(() => _rateValue = v),
-            ),
-          ),
-          if (_rateType == 'TNA') ...[
             const SizedBox(height: 16),
-            _buildCapitalizationDropdown(),
-          ],
-          const SizedBox(height: 16),
-          _buildGracePeriodSelector(),
-          if (_gracePeriod != 'Sin gracia') ...[
-            const SizedBox(height: 16),
-            _buildGraceMonthsStepper(),
-          ],
-          const SizedBox(height: 16),
-          _buildField(
-            label: 'Tasa de Descuento — COK (%)',
-            helpText: 'Costo de Oportunidad del Capital. Usado para calcular el VAN.',
-            child: _numericInput(
-              value: _cok,
-              suffix: '%',
-              onChanged: (v) => setState(() => _cok = v),
+
+            _buildAdvancedSettingsAccordion(),
+
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _simulate,
+                icon: _isLoading
+                    ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.onSecondary),
+                )
+                    : const Icon(Icons.bolt_rounded, size: 18),
+                label: Text(_isLoading ? 'Calculando...' : 'Simular Crédito'),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // ✨ AQUÍ SE INYECTA EL ACORDEÓN DE CONFIGURACIÓN AVANZADA
-          _buildAdvancedSettingsAccordion(),
+  Widget _buildRiskBanner(SimulationResponse result) {
+    if (result.riskClassification.isEmpty) return const SizedBox();
 
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: _isLoading ? null : _simulate,
-              icon: _isLoading
-                  ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.onSecondary),
-              )
-                  : const Icon(Icons.bolt_rounded, size: 18),
-              label: Text(_isLoading ? 'Calculando...' : 'Simular Crédito'),
+    final isAlto = result.riskClassification.contains('Alto');
+    final isMedio = result.riskClassification.contains('Medio');
+    final color = isAlto ? AppColors.error : (isMedio ? const Color(0xFFEAB308) : const Color(0xFF16A34A));
+    final icon = isAlto ? Icons.warning_amber_rounded : (isMedio ? Icons.info_outline : Icons.check_circle_outline);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(result.riskClassification,
+                    style: TextStyle(fontFamily: 'Montserrat', fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                Text(result.riskDecision,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+              ],
             ),
           ),
         ],
@@ -277,28 +331,64 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   }
 
   Widget _helpChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryContainer.withValues(alpha: 0.1),
-        border:
-        Border.all(color: AppColors.secondaryContainer.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.help_outline, size: 13, color: AppColors.secondary),
-          SizedBox(width: 4),
-          Text(
-            'Ayuda',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.secondary,
+    return GestureDetector(
+      onTap: _showSimulatorHelp,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.secondaryContainer.withValues(alpha: 0.1),
+          border: Border.all(color: AppColors.secondaryContainer.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.help_outline, size: 13, color: AppColors.secondary),
+            SizedBox(width: 4),
+            Text(
+              'Ayuda',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.secondary,
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSimulatorHelp() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Guía del Simulador', style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              _HelpItem(term: 'TEA / TNA', desc: 'Tasa Efectiva Anual (ya incluye capitalización) o Tasa Nominal Anual (necesita indicar cómo se capitaliza).'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'Capitalización', desc: 'Frecuencia con la que se acumulan intereses cuando usas TNA (diaria o mensual).'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'Cuota Final Inteligente', desc: 'Pago único al final del plazo que reduce tus cuotas mensuales durante todo el crédito.'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'Período de Gracia', desc: 'Parcial: solo pagas intereses. Total: los intereses se acumulan al saldo, sin pago mensual.'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'COK', desc: 'Costo de Oportunidad del Capital — tasa usada para calcular el VAN de la operación.'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'VAN', desc: 'Valor Actual Neto del préstamo, desde el punto de vista del deudor.'),
+              SizedBox(height: 10),
+              _HelpItem(term: 'TIR / TCEA', desc: 'TIR: tasa interna de retorno mensual del flujo. TCEA: TIR anualizada — el costo real total del crédito.'),
+            ],
           ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido')),
         ],
       ),
     );
@@ -358,6 +448,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       ),
     );
   }
+
+
 
   Widget _buildClientSearchDropdown() {
     // 1. Escuchamos a tu provider de clientes para obtener la lista desde la BD
@@ -688,6 +780,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     String? prefix,
     String? suffix,
     required ValueChanged<double> onChanged,
+    int maxDecimals = 2,
+    double? min,
+    double? max,
   }) {
     return TextFormField(
       key: ValueKey(value),
@@ -695,7 +790,23 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           ? value.toInt().toString()
           : value.toStringAsFixed(2),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: (v) => onChanged(double.tryParse(v) ?? value),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(
+          RegExp(r'^\d*\.?\d{0,' + maxDecimals.toString() + r'}'),
+        ),
+      ],
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      validator: (v) {
+        final parsed = double.tryParse(v ?? '');
+        if (parsed == null) return 'Ingresa un número válido';
+        if (min != null && parsed < min) return 'Mínimo $min';
+        if (max != null && parsed > max) return 'Máximo $max';
+        return null;
+      },
+      onChanged: (v) {
+        final parsed = double.tryParse(v);
+        if (parsed != null) onChanged(parsed);
+      },
       style: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 15,
@@ -704,17 +815,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       ),
       decoration: InputDecoration(
         prefixText: prefix != null ? '$prefix ' : null,
-        prefixStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.onSurfaceVariant),
+        prefixStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant),
         suffixText: suffix,
-        suffixStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.onSurfaceVariant),
+        suffixStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant),
       ),
     );
   }
@@ -916,11 +1019,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         ),
         _metricChip(
           label: 'TIR (mensual)',
-          value: '${(result.tirMonthly).toStringAsFixed(2)}%',
+          value: '${(result.tirMonthly).toStringAsFixed(4)}%',
         ),
         _metricChip(
           label: 'TCEA (Costo Real)',
-          value: '${result.tcea.toStringAsFixed(2)}%',
+          value: '${result.tcea.toStringAsFixed(4)}%',
           valueColor: AppColors.secondary,
         ),
         _metricChip(
@@ -1146,9 +1249,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
                   Row(
                     children: [
-                      Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
+                      Expanded(child: _buildField(label: '% Seg. Desgrav.', child: _numericInput(value: _tasaDesgravamenMensual, suffix: '%', maxDecimals: 2, min: 0, max: 5, onChanged: (v) => setState(() => _tasaDesgravamenMensual = v)))),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),
+                      Expanded(child: _buildField(label: '% Seg. Riesgo', child: _numericInput(value: _seguroVehicularMensual, suffix: '%', maxDecimals: 2, min: 0, max: 5, onChanged: (v) => setState(() => _seguroVehicularMensual = v)))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1193,7 +1296,24 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   }
 }
 
-// ignore: unused_element
 extension on double {
   int truncate() => toInt();
+}
+
+
+class _HelpItem extends StatelessWidget {
+  final String term;
+  final String desc;
+  const _HelpItem({required this.term, required this.desc});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(term, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+        Text(desc, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.onSurfaceVariant)),
+      ],
+    );
+  }
 }
